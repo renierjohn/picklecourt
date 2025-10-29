@@ -1,0 +1,319 @@
+// Calendar Section
+.calendar-section {
+  padding: $spacing-xl 0;
+  background-color: $light-bg;
+  
+  .section-title {
+    text-align: center;
+    margin-bottom: $spacing-xl;
+    color: $dark;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  
+  .container {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: $spacing-sm 0;
+  }
+
+  // Date Selector
+  .date-selector {
+    display: flex;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-lg $spacing-lg;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    
+    &::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    .date-button {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 72px;
+      background: $white;
+      border: 1px solid $border-color;
+      border-radius: $border-radius-md;
+      padding: $spacing-xs;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-sm;
+        border-color: $primary-color;
+      }
+      
+      &.selected {
+        background: $primary-color;
+        border-color: $primary-color;
+        color: $white;
+        
+        .day, .date {
+          color: $white;
+        }
+      }
+      
+      &.weekend {
+        .date {
+          color: $error-color;
+        }
+        
+        &.selected .date {
+          color: $white;
+        }
+      }
+      
+      .day {
+        font-size: 0.75rem;
+        color: $gray-600;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      
+      .date {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $dark;
+        
+        &.today {
+          position: relative;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background: $primary-color;
+            border-radius: 50%;
+          }
+          
+          .selected &::after {
+            background: $white;
+          }
+        }
+      }
+    }
+  }
+
+  // Time Slots Section
+  .time-slots {
+    margin-top: $spacing-xl;
+    padding: 0 $spacing-md;
+    
+    .time-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: $spacing-sm;
+      margin-bottom: $spacing-xl;
+    }
+
+    .time-slot {
+      background: $white;
+      border: 2px solid $border-color;
+      border-radius: $border-radius-md;
+      padding: $spacing-sm $spacing-xs;
+      text-align: center;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60px;
+      
+      &:hover:not(.booked):not(.lunch-break) {
+        transform: translateY(-2px);
+        box-shadow: $shadow-sm;
+        border-color: $primary-color;
+      }
+      
+      &.selected {
+        background: $primary-color;
+        border-color: $primary-color;
+        color: $white;
+        font-weight: 600;
+        
+        .booked-badge, .lunch-badge {
+          background: rgba(255, 255, 255, 0.2);
+          color: $white;
+        }
+      }
+      
+      &.booked {
+        background: $gray-100;
+        color: $gray-500;
+        cursor: not-allowed;
+        text-decoration: line-through;
+        border-style: dashed;
+        
+        .booked-badge {
+          background: $error-light;
+          color: $error-color;
+          font-size: 0.65rem;
+          padding: 1px 6px;
+          border-radius: 10px;
+          margin-top: 4px;
+          text-decoration: none;
+        }
+      }
+      
+      &.lunch-break {
+        background: $gray-50;
+        color: $gray-600;
+        cursor: not-allowed;
+        border-style: dashed;
+        
+        .lunch-badge {
+          background: $warning-light;
+          color: $warning-dark;
+          font-size: 0.65rem;
+          padding: 1px 6px;
+          border-radius: 10px;
+          margin-top: 4px;
+        }
+      }
+      
+      .time {
+        display: block;
+        font-weight: 600;
+      }
+      
+      .badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+    }
+    
+    .selected-times {
+      margin-top: $spacing-xl;
+      padding: $spacing-md;
+      background: $light-bg;
+      border-radius: $border-radius-md;
+      
+      h4 {
+        margin: 0 0 $spacing-md 0;
+        color: $dark;
+        font-size: 1.1rem;
+      }
+      
+      .selected-times-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-sm;
+        margin-top: $spacing-sm;
+      }
+      
+      .selected-time-tag {
+        display: inline-flex;
+        align-items: center;
+        background: none;
+        color: $primary-dark;
+        padding: $spacing-xs $spacing-sm;
+        border-radius: $border-radius-sm;
+        border: 1px $dark-gray solid;
+        font-size: 0.85rem;
+        font-weight: 500;
+        
+        .remove-time {
+          background: none;
+          border: none;
+          color: $primary-dark;
+          margin-left: $spacing-xs;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          padding: 0;
+          transition: background-color 0.2s;
+          
+          &:hover {
+            background: rgba(0, 0, 0, 0.1);
+          }
+        }
+      }
+    }
+
+  // Responsive Adjustments
+  @media (max-width: $breakpoint-lg) {
+    .time-slots .time-slots-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  @media (max-width: $breakpoint-md) {
+    .date-selector {
+      padding: $spacing-sm $spacing-sm $spacing-sm;
+    }
+    
+    .time-slots .time-slots-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .selected-times .selected-time-tag {
+      font-size: 0.8rem;
+      padding: $spacing-xxs $spacing-xs;
+      
+      .remove-time {
+        width: 16px;
+        height: 16px;
+        
+        &::before {
+          font-size: 1rem;
+        }
+      }
+    }
+  }
+  
+  @media (max-width: $breakpoint-sm) {
+    .date-button {
+      width: 48px;
+      height: 64px;
+      padding: $spacing-xxs;
+      
+      .day {
+        font-size: 0.65rem;
+      }
+      
+      .date {
+        font-size: 1rem;
+      }
+    }
+    
+    .time-slots .time-slots-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .time-slot {
+      min-height: 56px;
+      font-size: 0.85rem;
+      padding: $spacing-xs;
+      
+      .badge {
+        font-size: 0.6rem;
+        padding: 1px 6px;
+      }
+    }
+  }
+}
+}

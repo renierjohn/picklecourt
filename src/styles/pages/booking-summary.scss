@@ -1,0 +1,397 @@
+.booking-summary {
+  padding: $spacing-xl 0;
+  background-color: $light-gray;
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 $spacing-md;
+  }
+
+  .page-title {
+    font-size: $font-size-xxl;
+    margin-bottom: $spacing-xl;
+    color: $black;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .booking-container {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: $spacing-xl;
+    margin-top: $spacing-xl;
+
+    @media (max-width: $breakpoint-md) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .booking-details, .booking-form-container {
+    background: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-xl;
+    box-shadow: $shadow-sm;
+  }
+
+  h2 {
+    font-size: $font-size-xl;
+    margin-bottom: $spacing-lg;
+    color: $black;
+    font-weight: 600;
+  }
+
+  .court-card {
+    display: flex;
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+
+    @media (max-width: $breakpoint-sm) {
+      flex-direction: column;
+    }
+
+    .court-image {
+      flex: 0 0 200px;
+      height: 150px;
+      border-radius: $border-radius-md;
+      overflow: hidden;
+      box-shadow: $shadow-sm;
+
+      @media (max-width: $breakpoint-sm) {
+        flex: 0 0 150px;
+        width: 100%;
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .court-info {
+      flex: 1;
+
+      h3 {
+        font-size: $font-size-lg;
+        margin-bottom: $spacing-xs;
+        color: $black;
+      }
+
+      .location {
+        color: $primary-color;
+        font-weight: 500;
+        margin-bottom: $spacing-sm;
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+
+        &::before {
+          content: '📍';
+          font-size: 1.2em;
+        }
+      }
+
+      .description {
+        color: $dark-gray;
+        margin-bottom: $spacing-md;
+        font-size: $font-size-sm;
+        line-height: 1.6;
+      }
+    }
+
+    .booking-info {
+      background: $light-gray;
+      border-radius: $border-radius-md;
+      padding: $spacing-md;
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: $spacing-sm;
+        font-size: $font-size-sm;
+
+        &.total {
+          margin-top: $spacing-md;
+          padding-top: $spacing-sm;
+          border-top: 1px solid darken($light-gray, 5%);
+          font-weight: 600;
+          font-size: $font-size-md;
+          color: $black;
+        }
+
+        .label {
+          color: $dark-gray;
+        }
+
+        .value {
+          font-weight: 500;
+          color: $black;
+        }
+      }
+    }
+  }
+
+  .booking-form {
+    .form-group {
+      margin-bottom: $spacing-md;
+
+      label {
+        display: block;
+        margin-bottom: $spacing-xs;
+        font-weight: 500;
+        color: $dark-gray;
+        font-size: $font-size-sm;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="tel"],
+      textarea {
+        width: 100%;
+        padding: $spacing-sm $spacing-md;
+        border: 1px solid darken($light-gray, 10%);
+        border-radius: $border-radius-sm;
+        font-family: inherit;
+        font-size: $font-size-md;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+        &:focus {
+          outline: none;
+          border-color: $primary-color;
+          box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+        }
+
+        &::placeholder {
+          color: lighten($dark-gray, 30%);
+        }
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: $spacing-md;
+    }
+  }
+
+  .payment-method {
+    margin: $spacing-xl 0;
+    padding: $spacing-lg;
+    background: $light-gray;
+    border-radius: $border-radius-md;
+
+    h3 {
+      font-size: $font-size-md;
+      margin-bottom: $spacing-md;
+      color: $black;
+    }
+
+    .payment-options {
+      display: flex;
+      gap: $spacing-md;
+      margin-bottom: $spacing-lg;
+
+      .payment-option {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        cursor: pointer;
+        padding: $spacing-sm $spacing-md;
+        background: $white;
+        border-radius: $border-radius-sm;
+        border: 1px solid darken($light-gray, 10%);
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: $primary-color;
+        }
+
+        input[type="radio"] {
+          margin: 0;
+        }
+      }
+    }
+
+    .card-details {
+      background: $white;
+      padding: $spacing-md;
+      border-radius: $border-radius-sm;
+      margin-top: $spacing-md;
+    }
+  }
+
+  .terms {
+    margin: $spacing-lg 0;
+    font-size: $font-size-sm;
+    color: $dark-gray;
+
+    .checkbox-container {
+      display: flex;
+      align-items: flex-start;
+      gap: $spacing-sm;
+      cursor: pointer;
+      position: relative;
+      padding-left: 30px;
+
+      input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+        height: 0;
+        width: 0;
+
+        &:checked ~ .checkmark {
+          background-color: $primary-color;
+          border-color: $primary-color;
+
+          &::after {
+            display: block;
+          }
+        }
+      }
+
+      .checkmark {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 20px;
+        width: 20px;
+        background-color: $white;
+        border: 1px solid darken($light-gray, 15%);
+        border-radius: $border-radius-sm;
+
+        &::after {
+          content: "";
+          position: absolute;
+          display: none;
+          left: 7px;
+          top: 3px;
+          width: 5px;
+          height: 10px;
+          border: solid white;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+        }
+      }
+
+      a {
+        color: $primary-color;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  .submit-button {
+    display: block;
+    width: 100%;
+    padding: $spacing-md;
+    background: $primary-color;
+    color: $white;
+    border: none;
+    border-radius: $border-radius-md;
+    font-size: $font-size-md;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: darken($primary-color, 10%);
+      transform: translateY(-2px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      background: lighten($primary-color, 20%);
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  .secure-payment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-xs;
+    margin-top: $spacing-md;
+    font-size: $font-size-xs;
+    color: $dark-gray;
+    text-align: center;
+
+    svg {
+      color: $secondary-color;
+    }
+  }
+
+  // Success message
+  .success-message, .not-found {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: $spacing-xxl $spacing-lg;
+    background: $white;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
+
+    h2 {
+      margin-top: $spacing-lg;
+      margin-bottom: $spacing-md;
+      color: $black;
+    }
+
+    p {
+      color: $dark-gray;
+      margin-bottom: $spacing-xl;
+      line-height: 1.6;
+    }
+  }
+
+  .success-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto $spacing-lg;
+    background: rgba($secondary-color, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 40px;
+      height: 40px;
+      color: $secondary-color;
+    }
+  }
+
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: $spacing-sm $spacing-lg;
+    background: $primary-color;
+    color: $white;
+    border: none;
+    border-radius: $border-radius-md;
+    font-size: $font-size-md;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: darken($primary-color, 10%);
+      transform: translateY(-2px);
+    }
+  }
+}

@@ -1,0 +1,8 @@
+Create site with google inspired theme that has pickleball booking on courts.
+
+- There are 3 pages
+  - 1st page is the dashboard for admin for list of users booked on the court, should be in table format
+  - 2nd page is the homepage, there should be calendar (with dynamic dates) below the header, the list of courts should be card component (Buttons are labeled as Booked Now (green backgound), Reserver (red background))
+  - 3rd page is the payment summary, contains image of court, date , form for name (should be visited when clicked by "Book Now" button)
+- There should be scss files for global, variables & components
+- Should be build from vite

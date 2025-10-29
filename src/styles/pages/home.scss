@@ -1,0 +1,577 @@
+// Locations Section
+.locations-section {
+  padding: $spacing-xxl 0;
+  background-color: $light-bg;
+  
+  .section-title {
+    text-align: center;
+    margin-bottom: $spacing-sm;
+    color: $dark;
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  
+  .section-subtitle {
+    text-align: center;
+    color: $gray-600;
+    margin-bottom: $spacing-xxl;
+    font-size: 1.25rem;
+  }
+  
+  .locations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: $spacing-xl;
+    margin-top: $spacing-lg;
+    
+    @media (max-width: $breakpoint-md) {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: $spacing-lg;
+    }
+  }
+  
+  .location-card {
+    background: $white;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    box-shadow: $shadow-sm;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: $shadow-md;
+      
+      .location-image img {
+        transform: scale(1.05);
+      }
+      
+      .location-overlay {
+        opacity: 1;
+      }
+    }
+    
+    .location-image {
+      position: relative;
+      height: 200px;
+      overflow: hidden;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+      }
+      
+      .location-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        
+        .btn-outline {
+          background: rgba(255, 255, 255, 0.9);
+          color: $primary-color;
+          border: none;
+          padding: $spacing-sm $spacing-lg;
+          font-weight: 600;
+          
+          &:hover {
+            background: $white;
+            transform: translateY(-2px);
+          }
+        }
+      }
+    }
+    
+    .location-details {
+      padding: $spacing-lg;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      
+      .location-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: $spacing-xs;
+        
+        h3 {
+          margin: 0;
+          color: $dark;
+          font-size: 1.25rem;
+          font-weight: 700;
+        }
+        
+        .distance {
+          background: $primary-color;
+          color: white;
+          font-size: 0.75rem;
+          padding: 0.25rem $spacing-sm;
+          border-radius: 1rem;
+          font-weight: 600;
+        }
+      }
+      
+      .address {
+        color: $gray-600;
+        margin: $spacing-xs 0 $spacing-md;
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        
+        .icon {
+          margin-right: $spacing-xs;
+          color: $primary-color;
+          font-size: 1rem;
+        }
+      }
+      
+      .location-features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-sm;
+        margin: $spacing-md 0;
+        
+        .feature {
+          display: inline-flex;
+          align-items: center;
+          background: $light-bg;
+          padding: 0.25rem $spacing-sm;
+          border-radius: 1rem;
+          font-size: 0.75rem;
+          color: $gray-700;
+          
+          i {
+            margin-right: 0.25rem;
+            color: $primary-color;
+            font-size: 0.8rem;
+          }
+        }
+      }
+      
+      .btn-primary {
+        margin-top: auto;
+        width: 100%;
+        padding: $spacing-sm;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+}
+
+// Court selection styles
+.courts-section {
+  padding: $spacing-lg 0;
+  background-color: $light-bg;
+}
+
+.courts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.court-selection {
+  background: $white;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &.selected {
+    border-color: $primary-color;
+    box-shadow: 0 0 0 2px rgba($primary-color, 0.3);
+  }
+
+  .court-image {
+    height: 160px;
+    overflow: hidden;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+  }
+
+  &:hover .court-image img {
+    transform: scale(1.05);
+  }
+
+  .court-info {
+    padding: $spacing-md;
+
+    h3 {
+      margin: 0 0 $spacing-xs;
+      color: $black;
+      font-size: 1.2rem;
+    }
+
+    p {
+      margin: 0 0 $spacing-sm;
+      color: $dark-gray;
+      font-size: 0.9rem;
+    }
+  }
+
+  .court-availability {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+
+    .slots {
+      color: $primary-color;
+      font-weight: 500;
+    }
+  }
+}
+
+.selected-court-info {
+  background: $white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-lg;
+  margin-top: $spacing-lg;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  h3 {
+    margin: 0 0 $spacing-sm;
+    color: $black;
+    font-size: 1.3rem;
+  }
+
+  p {
+    color: $dark-gray;
+    margin-bottom: $spacing-md;
+  }
+}
+
+.booking-summary {
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1px solid $light-gray;
+
+  h4 {
+    margin: 0 0 $spacing-sm;
+    font-size: 1rem;
+    color: $black;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 $spacing-md;
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: $spacing-xs 0;
+      border-bottom: 1px solid $light-gray;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  .book-now-button {
+    display: block;
+    width: 100%;
+    padding: $spacing-sm;
+    background: $primary-color;
+    color: white;
+    border: none;
+    border-radius: $border-radius-md;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background: darken($primary-color, 10%);
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+}
+
+// Animation for court selection
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba($primary-color, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba($primary-color, 0); }
+  100% { box-shadow: 0 0 0 0 rgba($primary-color, 0); }
+}
+
+.court-selection.selected {
+  animation: pulse 1.5s infinite;
+}
+
+// Original home styles
+@import '../variables';
+
+.courts {
+  padding: $spacing-lg 0;
+  
+  .section-title {
+    text-align: center;
+    margin-bottom: $spacing-xl;
+    color: $black;
+    font-size: $font-size-xxl;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: $spacing-md;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+    padding-bottom: $spacing-sm;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+
+    &::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+  }
+
+  .date-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    padding: $spacing-sm;
+    background: $white;
+    border: 1px solid $light-gray;
+    border-radius: $border-radius-md;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: $light-gray;
+    }
+
+    &.selected {
+      background: $primary-color;
+      color: $white;
+      border-color: $primary-color;
+
+      .date.today {
+        color: $white;
+      }
+    }
+
+    .day {
+      font-size: $font-size-sm;
+      text-transform: uppercase;
+      margin-bottom: $spacing-xs;
+    }
+
+    .date {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: 500;
+
+      &.today {
+        background: $accent-color;
+        color: $black;
+      }
+    }
+
+    &.weekend {
+      .day,
+      .date {
+        opacity: 0.7;
+      }
+    }
+  }
+
+  .time-slots {
+    margin-bottom: $spacing-lg;
+  }
+
+  .time-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+  }
+
+  .time-slot {
+    padding: $spacing-xs $spacing-sm;
+    border: 1px solid $light-gray;
+    border-radius: $border-radius-md;
+    background: $white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    font-size: 0.9rem;
+    position: relative;
+    overflow: hidden;
+
+    &:hover:not(:disabled) {
+      border-color: $primary-color;
+    }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      background-color: #f5f5f5;
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    &.selected {
+      background: $primary-color;
+      color: $white;
+      border-color: $primary-color;
+      font-weight: 500;
+    }
+
+    &.booked {
+      background-color: #fff5f5;
+      border-color: #ffdddd;
+      color: #ff6b6b;
+      
+      &:hover {
+        background-color: #ffebeb;
+      }
+      
+      .booked-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: #ff6b6b;
+        color: white;
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        border-radius: 4px;
+        line-height: 1;
+      }
+      
+      &.lunch-break {
+        background-color: #f0f0f0;
+        border-color: #ddd;
+        color: #666;
+        font-style: italic;
+        
+        &:hover {
+          background-color: #e8e8e8;
+        }
+        
+        .lunch-badge {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          background: #666;
+          color: white;
+          font-size: 0.6rem;
+          padding: 1px 4px;
+          border-radius: 4px;
+          line-height: 1;
+          font-style: normal;
+        }
+      }
+    }
+  }
+
+  .selected-times {
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    background: $light-bg;
+    border-radius: $border-radius-md;
+
+    h4 {
+      margin: 0 0 $spacing-sm 0;
+      font-size: 0.95rem;
+      color: $dark-gray;
+    }
+  }
+
+  .selected-times-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+    margin-top: $spacing-xs;
+  }
+
+  .selected-time-tag {
+    display: inline-flex;
+    align-items: center;
+    background: $white;
+    border: 1px solid $primary-color;
+    border-radius: 20px;
+    padding: 2px $spacing-sm 2px $spacing-md;
+    font-size: 0.85rem;
+    color: $primary-color;
+    margin-right: $spacing-xs;
+    margin-bottom: $spacing-xs;
+
+    .remove-time {
+      margin-left: $spacing-xs;
+      background: none;
+      border: none;
+      color: $primary-color;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 2px 2px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: rgba($primary-color, 0.1);
+      }
+    }
+  }
+
+  .courts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: $spacing-lg;
+    margin-top: $spacing-lg;
+
+    @media (max-width: $breakpoint-sm) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+}
+
+@import '../components/calendar';
