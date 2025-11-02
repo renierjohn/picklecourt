@@ -26,6 +26,9 @@ export const Header = () => {
             {user?.role === 'admin' && (
               <Link to="/admin" className="nav-link">Admin</Link>
             )}
+            {user && (
+              <Link to="/database-test" className="nav-link">Database Test</Link>
+            )}
             {user ? (
               <>
                 <span className="nav-link">Welcome, {user.name}</span>

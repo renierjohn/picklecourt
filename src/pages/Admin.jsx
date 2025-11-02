@@ -1,98 +1,31 @@
-import { useState } from 'react';
-import ConfirmationModal from '../components/ConfirmationModal';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where, updateDoc, onSnapshot, writeBatch, getFirestore } from 'firebase/firestore';
+import { useAuth, auth } from '../contexts/AuthContext';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { useNavigate } from 'react-router-dom';
 import '../styles/pages/admin.scss';
 
 export const Admin = () => {
-  // Sample court data
-  const courtsJson = [
-    { 
-      id: 1, 
-      name: 'Court 1', 
-      status: 'active', 
-      location: 'Main Building',
-      unavailableDays: ['saturday', 'sunday'],
-      unavailableHours: ['12:00-13:00'],
-      image: null
-    },
-    { 
-      id: 2, 
-      name: 'Court 2', 
-      status: 'maintenance', 
-      location: 'Main Building',
-      unavailableDays: [],
-      unavailableHours: [],
-      image: null
-    },
-    { 
-      id: 3, 
-      name: 'Court 3', 
-      status: 'active', 
-      location: 'Annex Building',
-      unavailableDays: ['monday', 'wednesday'],
-      unavailableHours: ['11:30-12:30', '16:00-17:00'],
-      image: null
-    },
-  ];
+  const db = getFirestore();
+  const { user, login } = useAuth();
+  const navigate = useNavigate();
   
-  const bookingsJson = [
-    {
-      id: 'B001',
-      courtName: 'Court 1',
-      userName: 'John Doe',
-      date: new Date(), // Today
-      time: '10:00 - 11:00',
-      status: 'confirmed',
-      amount: 25.0,
-    },
-    {
-      id: 'B002',
-      courtName: 'Court 2',
-      userName: 'Jane Smith',
-      date: new Date(Date.now() + 86400000), // Tomorrow
-      time: '14:00 - 15:00',
-      status: 'confirmed',
-      amount: 25.0,
-    },
-    {
-      id: 'B003',
-      courtName: 'Court 3',
-      userName: 'Mike Johnson',
-      date: new Date(Date.now() + 2 * 86400000), // Day after tomorrow
-      time: '16:00 - 17:00',
-      status: 'pending',
-      amount: 25.0,
-    },
-    {
-      id: 'B004',
-      courtName: 'Court 1',
-      userName: 'Sarah Williams',
-      date: new Date(Date.now() - 86400000), // Yesterday
-      time: '09:00 - 10:00',
-      status: 'completed',
-      amount: 25.0,
-    },
-    {
-      id: 'B005',
-      courtName: 'Court 2',
-      userName: 'David Brown',
-      date: new Date(Date.now() - 2 * 86400000), // 2 days ago
-      time: '11:00 - 12:00',
-      status: 'completed',
-      amount: 25.0,
-    },
-  ];
+  // State for courts and bookings
+  const [courts, setCourts] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [courts, setCourts] = useState(courtsJson);
-  
   const [courtForm, setCourtForm] = useState({ 
     id: null, 
     name: '', 
     location: '',
+    status: 'active',
     unavailableDays: [],
     unavailableHours: [''],
     image: null,
-    imagePreview: null
+    imagePreview: null,
+    userId: ''
   });
   const [showCourtForm, setShowCourtForm] = useState(false);
   const [modalConfig, setModalConfig] = useState({
@@ -103,9 +36,6 @@ export const Admin = () => {
     confirmText: 'Confirm',
     danger: false
   });
-
-  // Sample booking data
-  const [bookings, setBookings] = useState(bookingsJson);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -181,35 +111,104 @@ export const Admin = () => {
     }
   };
 
-  const handleCourtSubmit = (e) => {
-    e.preventDefault();
-    if (courtForm.name && courtForm.location) {
-      const courtData = {
-        name: courtForm.name.trim(),
-        location: courtForm.location.trim(),
-        unavailableDays: courtForm.unavailableDays || [],
-        unavailableHours: courtForm.unavailableHours.filter(Boolean) || [],
-        image: courtForm.image,
-        imagePreview: courtForm.imagePreview
-      };
+  // Fetch courts and bookings data from Firestore
+  useEffect(() => {
+    if (!user) return;
+    
+    const userId = user.uid;
+    
+    // Subscribe to courts collection
+    const courtsQuery = query(
+      collection(db, 'courts'),
+      where('userId', '==', userId)
+    );
+    
+    const unsubscribeCourts = onSnapshot(courtsQuery, (snapshot) => {
+      const courtsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCourts(courtsData);
+      setLoading(false);
+    });
+    
+    // Subscribe to bookings collection
+    const bookingsQuery = query(
+      collection(db, 'bookings'),
+      where('userId', '==', userId)
+    );
+    
+    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
+      const bookingsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Convert Firestore Timestamp to Date
+        date: doc.data().date?.toDate() || new Date()
+      }));
+      setBookings(bookingsData);
+    });
+    
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubscribeCourts();
+      unsubscribeBookings();
+    };
+  }, [user]);
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
+  const handleCourtSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !courtForm.name || !courtForm.location) return;
+    
+    const userId = user.uid;
+    const timestamp = new Date();
+    const courtData = {
+      name: courtForm.name.trim(),
+      location: courtForm.location.trim(),
+      status: courtForm.status || 'active',
+      unavailableDays: courtForm.unavailableDays || [],
+      unavailableHours: courtForm.unavailableHours.filter(Boolean) || [],
+      // Only store the image URL or path, not the actual File object
+      image: courtForm.image ? courtForm.image.name : null,
+      imagePreview: null, // Don't store data URLs in Firestore
+      userId: userId,
+      createdAt: timestamp.toISOString(),
+      updatedAt: timestamp.toISOString()
+    };
+
+    try {
       if (courtForm.id) {
         // Update existing court
-        setCourts(courts.map(court => 
-          court.id === courtForm.id 
-            ? { ...court, ...courtData }
-            : court
-        ));
+        const courtRef = doc(db, 'courts', courtForm.id);
+        await updateDoc(courtRef, {
+          ...courtData,
+          updatedAt: new Date()
+        });
       } else {
         // Add new court
-        const newCourt = {
+        const newCourtRef = doc(collection(db, 'courts'));
+        await setDoc(newCourtRef, {
           ...courtData,
-          id: Math.max(0, ...courts.map(c => c.id)) + 1,
-          status: 'active'
-        };
-        setCourts([...courts, newCourt]);
+          id: newCourtRef.id
+        });
       }
       resetCourtForm();
+    } catch (error) {
+      console.error('Error saving court:', error);
+      // Show error to user
+      setModalConfig({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to save court. Please try again.',
+        confirmText: 'OK',
+        danger: true
+      });
     }
   };
 
@@ -239,31 +238,64 @@ export const Admin = () => {
     setShowCourtForm(false);
   };
   
-  const handleDeleteCourt = (courtId) => {
+  const handleDeleteCourt = async (courtId) => {
     const court = courts.find(c => c.id === courtId);
+    if (!court) return;
+    
     setModalConfig({
       isOpen: true,
       title: 'Delete Court',
       message: `Are you sure you want to delete "${court.name}"? This action cannot be undone.`,
       confirmText: 'Delete',
       danger: true,
-      onConfirm: () => {
-        setCourts(courts.filter(c => c.id !== courtId));
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'courts', courtId));
+          // Also delete related bookings
+          const bookingsQuery = query(
+            collection(db, 'bookings'),
+            where('courtId', '==', courtId)
+          );
+          const querySnapshot = await getDocs(bookingsQuery);
+          const batch = writeBatch(db);
+          querySnapshot.forEach((doc) => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('Error deleting court:', error);
+          setModalConfig({
+            isOpen: true,
+            title: 'Error',
+            message: 'Failed to delete court. Please try again.',
+            confirmText: 'OK',
+            danger: true
+          });
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
   };
 
-  const toggleCourtStatus = (courtId, newStatus) => {
-    setCourts(courts.map(court => 
-      court.id === courtId 
-        ? { 
-            ...court, 
-            status: newStatus || (court.status === 'active' ? 'inactive' : 'active')
-          } 
-        : court
-    ));
+  const toggleCourtStatus = async (courtId, newStatus) => {
+    try {
+      const courtRef = doc(db, 'courts', courtId);
+      const status = newStatus || (courts.find(c => c.id === courtId)?.status === 'active' ? 'inactive' : 'active');
+      await updateDoc(courtRef, {
+        status,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error updating court status:', error);
+      setModalConfig({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to update court status. Please try again.',
+        confirmText: 'OK',
+        danger: true
+      });
+    }
   };
   
   const handleMaintenance = (courtId) => {
@@ -289,20 +321,20 @@ export const Admin = () => {
 
   // Filter upcoming bookings (today and future)
   const upcomingBookings = bookings
-    .filter(booking => booking.date >= new Date())
-    .sort((a, b) => a.date - b.date);
+    .filter(booking => booking.date && new Date(booking.date) >= new Date())
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // Filter recent bookings (past bookings)
   const recentBookings = bookings
-    .filter(booking => booking.date < new Date())
-    .sort((a, b) => b.date - a.date);
+    .filter(booking => booking.date && new Date(booking.date) < new Date())
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  // Subscription data - in a real app, this would come from an API
+  // Subscription data - in a real app, this would come from an API or user profile
   const subscriptionData = {
     status: 'Active',
-    dueDate: new Date('2025-10-31'),
+    dueDate: user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : new Date(),
     plan: 'Premium',
-    courts: ['Court 1', 'Court 2', 'Court 3']
+    courts: courts.map(court => court.name).slice(0, 3) // Show first 3 court names
   };
 
   return (

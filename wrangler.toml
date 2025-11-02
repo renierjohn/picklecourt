@@ -5,15 +5,6 @@ compatibility_date = "2024-01-01"
 [assets]
 directory = "./dist"
 
-# Configure the build process
-# [build]
-# command = "yarn build"
-
-# Configure the build output directory
-# [site]
-# bucket = "./dist"
-# entry-point = "."
-
 # Enable modules format
 # [build.upload]
 # format = "modules"
@@ -23,15 +14,8 @@ directory = "./dist"
 [vars]
 NODE_ENV = "development"
 
-# Add KV namespaces (if needed)
-# [[kv_namespaces]]
-# binding = "MY_KV"
-# id = "..."
-# preview_id = "..."
-
 # Add D1 database (if needed)
 # [[d1_databases]]
-# binding = "DB"
-# database_name = "my-database"
-# database_id = "..."
-# preview_database_id = "..."
+# binding = "booking_dev"
+# database_name = "booking-dev"
+# database_id = "948db123-2eb2-4631-9110-1df4eead1105"

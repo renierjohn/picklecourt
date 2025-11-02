@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/pages/auth.scss';
 
@@ -9,15 +9,18 @@ export const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { user, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirect if user is already logged in
   useEffect(() => {
     if (user) {
-      navigate('/');
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,11 +31,26 @@ export const Register = () => {
       return;
     }
 
-    const result = register(name, email, password);
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.error || 'Failed to register');
+    if (password.length < 6) {
+      setError('Password should be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const result = await register(name, email, password);
+      if (result.success) {
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      } else {
+        setError(result.error || 'Failed to register');
+      }
+    } catch (err) {
+      setError('An error occurred during registration');
+      console.error('Registration error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 

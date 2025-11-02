@@ -6,6 +6,7 @@ import { Courts } from './pages/Courts';
 import { BookingSummary } from './pages/BookingSummary';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import DatabaseTest from './pages/DatabaseTest';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -30,6 +31,14 @@ function App() {
               />
               <Route path="/book/:courtId" element={<Courts />} />
               <Route path="/booking-summary/:courtId/:date/:times" element={<BookingSummary />} />
+              <Route
+                path="/database-test"
+                element={
+                  <ProtectedRoute>
+                    <DatabaseTest />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
         </div>
