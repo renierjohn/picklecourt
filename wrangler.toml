@@ -1,0 +1,37 @@
+name = "booking-slot"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "./dist"
+
+# Configure the build process
+# [build]
+# command = "yarn build"
+
+# Configure the build output directory
+# [site]
+# bucket = "./dist"
+# entry-point = "."
+
+# Enable modules format
+# [build.upload]
+# format = "modules"
+# main = "./worker.js"
+
+# Add environment variables
+[vars]
+NODE_ENV = "development"
+
+# Add KV namespaces (if needed)
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "..."
+# preview_id = "..."
+
+# Add D1 database (if needed)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "my-database"
+# database_id = "..."
+# preview_database_id = "..."

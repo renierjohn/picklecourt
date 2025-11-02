@@ -8,14 +8,16 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "vite"
+    "start": "vite",
+    "wrangler": "wrangler"
   },
   "dependencies": {
+    "date-fns": "^2.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-icons": "^4.10.1",
     "react-router-dom": "^6.15.0",
-    "date-fns": "^2.30.0",
-    "react-icons": "^4.10.1"
+    "wrangler": "^4.45.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.3",

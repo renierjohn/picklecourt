@@ -1,25 +1,40 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import { Home } from './pages/Home';
 import { Admin } from './pages/Admin';
 import { Courts } from './pages/Courts';
 import { BookingSummary } from './pages/BookingSummary';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Header } from './components/Header';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
-    <Router>
-      <div className="app">
-        <Header />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/book/:courtId" element={<Courts />} />
-            <Route path="/booking-summary/:courtId/:date/:times" element={<BookingSummary />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <div className="app">
+          <Header />
+          <main className="main-content">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/book/:courtId" element={<Courts />} />
+              <Route path="/booking-summary/:courtId/:date/:times" element={<BookingSummary />} />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
