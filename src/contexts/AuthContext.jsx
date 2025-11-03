@@ -7,14 +7,19 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, getFirestore, serverTimestamp } from 'firebase/firestore';
 
 import firebaseConfig from '../firebase/config';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 const AuthContext = createContext();
 
@@ -23,24 +28,101 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Set token with expiration
+  const setWithExpiry = (key, value, ttl) => {
+    const now = new Date();
+    const item = {
+      value: value,
+      expiry: now.getTime() + ttl,
+    };
+    localStorage.setItem(key, JSON.stringify(item));
+  };
+
+  // Get token with expiration check
+  const getWithExpiry = (key) => {
+    const itemStr = localStorage.getItem(key);
+    if (!itemStr) return null;
+    
+    const item = JSON.parse(itemStr);
+    const now = new Date();
+    
+    // Compare the expiry time of the item with the current time
+    if (now.getTime() > item.expiry) {
+      // If the item is expired, delete it from storage and return null
+      localStorage.removeItem(key);
+      return null;
+    }
+    return item.value;
+  };
+
+  // Clear user data from localStorage
+  const clearUserData = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  // Check for existing session on app load
   useEffect(() => {
-    // Set up auth state observer
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in
-        const userData = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || 'User',
-          // Default role is 'user', you can fetch additional user data from Firestore if needed
-          role: firebaseUser.email === 'renify.official@gmail.com' ? 'admin' : 'user'
-        };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
+    const storedUser = getWithExpiry('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  // Set up auth state observer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {        
+        try {
+          // First, try to get the user's role from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          let userRole = 'user'; // Default role
+          
+          if (userDoc.exists()) {
+            // If user exists in Firestore, use their stored role
+            userRole = userDoc.data().role || 'user';
+          } else {
+            // If user doesn't exist in Firestore, create a new document
+            // This is useful for users who sign in for the first time
+            await setDoc(doc(db, 'users', firebaseUser.uid), {
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || 'User',
+              role: user.role,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              status: 1 // Active by default
+            });
+            userRole = user.role;
+          }
+          
+          const userData = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || 'User',
+            role: userRole,
+            lastLogin: new Date().toISOString()
+          };
+
+          // Set user in state and localStorage with 24-hour expiration
+          setUser(userData);
+          setWithExpiry('user', JSON.stringify(userData), 24 * 60 * 60 * 1000); // 24 hours
+          
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // Fallback to default role if there's an error
+          const userData = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || 'User',
+            role: 'user',
+            lastLogin: new Date().toISOString()
+          };
+          setUser(userData);
+          setWithExpiry('user', JSON.stringify(userData), 24 * 60 * 60 * 1000);
+        }
       } else {
         // User is signed out
-        setUser(null);
-        localStorage.removeItem('user');
+        clearUserData();
       }
       setLoading(false);
     });
@@ -55,12 +137,21 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const userRole = userDoc.exists() ? (userDoc.data().role || 'user') : 'user';
+      
       const userData = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: firebaseUser.displayName || 'User',
-        role: firebaseUser.email === 'admin@example.com' ? 'admin' : 'user'
+        role: userRole
       };
+      
+      // Redirect based on role
+      if (userRole === 'admin') {
+        window.location.href = '/admin';
+      }
       
       return { success: true, user: userData };
     } catch (error) {
@@ -71,6 +162,101 @@ export const AuthProvider = ({ children }) => {
         errorMessage = 'Invalid email or password';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
+      }
+      
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
+  const signInWithGoogle = useCallback(async () => {
+    setError(null);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+      
+      // Prepare user data for Firestore
+      const userData = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: firebaseUser.displayName || 'User',
+        photoURL: firebaseUser.photoURL,
+        role: 'user',
+        status: 1, // Mark as active for social login
+        emailVerified: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Store or update user data in Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
+      
+      // Update local state with user data
+      const userState = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: firebaseUser.displayName || 'User',
+        role: 'user',
+        status: 1
+      };
+      
+      setUser(userState);
+      localStorage.setItem('user', JSON.stringify(userState));
+      return { success: true, user: userState };
+    } catch (error) {
+      console.error('Google Sign In Error:', error);
+      const errorMessage = error.message || 'Failed to sign in with Google';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
+  const signInWithFacebook = useCallback(async () => {
+    setError(null);
+    try {
+      const provider = new FacebookAuthProvider();
+      // Add Facebook scopes
+      provider.addScope('public_profile');
+      provider.addScope('email');
+      
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+      
+      // Prepare user data for Firestore
+      const userData = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: firebaseUser.displayName || 'User',
+        photoURL: firebaseUser.photoURL,
+        role: 'user',
+        status: 1, // Mark as active for social login
+        emailVerified: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Store or update user data in Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
+      
+      // Update local state with user data
+      const userState = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: firebaseUser.displayName || 'User',
+        role: 'user',
+        status: 1
+      };
+      
+      setUser(userState);
+      localStorage.setItem('user', JSON.stringify(userState));
+      return { success: true, user: userState };
+    } catch (error) {
+      console.error('Facebook Sign In Error:', error);
+      let errorMessage = 'Failed to sign in with Facebook';
+      
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = 'An account already exists with the same email but different sign-in credentials';
       }
       
       setError(errorMessage);
@@ -89,16 +275,33 @@ export const AuthProvider = ({ children }) => {
         displayName: name
       });
       
+      // Prepare user data for Firestore
       const userData = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: name,
-        role: 'user' // Default role is user
+        role: 'user', // Default role is user
+        status: 0,    // Default status is 0 (inactive/unverified)
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        emailVerified: false
+      };
+
+      // Store user data in Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      
+      // Update local state with user data
+      const userState = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: name,
+        role: 'user',
+        status: 0
       };
       
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      return { success: true, user: userData };
+      setUser(userState);
+      localStorage.setItem('user', JSON.stringify(userState));
+      return { success: true, user: userState };
     } catch (error) {
       console.error('Registration error:', error);
       let errorMessage = 'Failed to create account';
@@ -136,7 +339,9 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    setError
+    setError,
+    signInWithGoogle,
+    signInWithFacebook
   };
 
   return (
@@ -150,7 +355,7 @@ export const AuthProvider = ({ children }) => {
 export { auth };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext);  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

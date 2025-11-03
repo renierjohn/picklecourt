@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { collection, doc, getDocs, setDoc, deleteDoc, query, where, updateDoc, onSnapshot, writeBatch, getFirestore } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
+import { FaUser, FaCamera, FaSave, FaTimes } from 'react-icons/fa';
 import '../styles/pages/admin.scss';
 
 export const Admin = () => {
@@ -36,6 +38,19 @@ export const Admin = () => {
     confirmText: 'Confirm',
     danger: false
   });
+
+  // User profile state
+  const [userProfile, setUserProfile] = useState({
+    name: '',
+    email: '',
+    location: '',
+    photoURL: ''
+  });
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const fileInputRef = useRef(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -99,15 +114,92 @@ export const Admin = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setCourtForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file)
+      }));
+    }
+  };
+
+  // Fetch user profile data
+  const fetchUserProfile = async (userId) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserProfile({
+          name: userData.name || '',
+          email: userData.email || user.email || '',
+          location: userData.location || '',
+          photoURL: userData.photoURL || ''
+        });
+        setImagePreview(userData.photoURL || '');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  // Handle profile image change
+  // Handle profile image change
+  const handleProfileImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfileImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCourtForm(prev => ({
-          ...prev,
-          image: file,
-          imagePreview: reader.result
-        }));
+        setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle profile form field changes
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setUserProfile(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Save profile changes
+  const saveProfile = async () => {
+    if (!user) return;
+    
+    setIsUpdating(true);
+    try {
+      const updates = {
+        name: userProfile.name.trim(),
+        location: userProfile.location.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Upload new profile image if selected
+      if (profileImage) {
+        const storage = getStorage();
+        const storageRef = ref(storage, `profile_images/${user.uid}_${Date.now()}`);
+        await uploadBytes(storageRef, profileImage);
+        const downloadURL = await getDownloadURL(storageRef);
+        updates.photoURL = downloadURL;
+        setImagePreview(downloadURL);
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      
+      // Update local state
+      setUserProfile(prev => ({
+        ...prev,
+        ...updates
+      }));
+      
+      setIsEditingProfile(false);
+      setProfileImage(null);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -116,6 +208,9 @@ export const Admin = () => {
     if (!user) return;
     
     const userId = user.uid;
+    
+    // Fetch user profile
+    fetchUserProfile(userId);
     
     // Subscribe to courts collection
     const courtsQuery = query(
@@ -168,36 +263,42 @@ export const Admin = () => {
     
     const userId = user.uid;
     const timestamp = new Date();
-    const courtData = {
-      name: courtForm.name.trim(),
-      location: courtForm.location.trim(),
-      status: courtForm.status || 'active',
-      unavailableDays: courtForm.unavailableDays || [],
-      unavailableHours: courtForm.unavailableHours.filter(Boolean) || [],
-      // Only store the image URL or path, not the actual File object
-      image: courtForm.image ? courtForm.image.name : null,
-      imagePreview: null, // Don't store data URLs in Firestore
-      userId: userId,
-      createdAt: timestamp.toISOString(),
-      updatedAt: timestamp.toISOString()
-    };
-
+    let imageUrl = courtForm.id ? courts.find(c => c.id === courtForm.id)?.image || null : null;
+    
     try {
+      // Upload image if a new one was selected
+      if (courtForm.image && courtForm.image instanceof File) {
+        const storage = getStorage();
+        const storageRef = ref(storage, `courts/${userId}/${Date.now()}_${courtForm.image.name}`);
+        await uploadBytes(storageRef, courtForm.image);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+      
+      const courtData = {
+        name: courtForm.name.trim(),
+        location: courtForm.location.trim(),
+        status: courtForm.status || 'active',
+        unavailableDays: courtForm.unavailableDays || [],
+        unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
+        image: imageUrl,
+        userId: userId,
+        updatedAt: timestamp.toISOString()
+      };
+
       if (courtForm.id) {
         // Update existing court
         const courtRef = doc(db, 'courts', courtForm.id);
-        await updateDoc(courtRef, {
-          ...courtData,
-          updatedAt: new Date()
-        });
+        await updateDoc(courtRef, courtData);
       } else {
         // Add new court
         const newCourtRef = doc(collection(db, 'courts'));
         await setDoc(newCourtRef, {
           ...courtData,
-          id: newCourtRef.id
+          id: newCourtRef.id,
+          createdAt: timestamp.toISOString()
         });
       }
+      
       resetCourtForm();
     } catch (error) {
       console.error('Error saving court:', error);
@@ -217,10 +318,12 @@ export const Admin = () => {
       id: court.id,
       name: court.name,
       location: court.location,
+      status: court.status || 'active',
       unavailableDays: court.unavailableDays || [],
       unavailableHours: court.unavailableHours?.length ? [...court.unavailableHours, ''] : [''],
       image: court.image || null,
-      imagePreview: court.imagePreview || null
+      imagePreview: court.image || null, // Show the existing image URL as preview
+      userId: court.userId || ''
     });
     setShowCourtForm(true);
   };
@@ -230,10 +333,12 @@ export const Admin = () => {
       id: null, 
       name: '', 
       location: '',
+      status: 'active',
       unavailableDays: [],
       unavailableHours: [''],
       image: null,
-      imagePreview: null
+      imagePreview: null,
+      userId: ''
     });
     setShowCourtForm(false);
   };
@@ -342,6 +447,132 @@ export const Admin = () => {
       <div className="container">
         <h1 className="page-title">Admin Dashboard</h1>
         
+        {/* User Profile Section */}
+        <div className="profile-section">
+          <div className="profile-card">
+            <div className="profile-header">
+              <h2>My Profile</h2>
+              {!isEditingProfile ? (
+                <button 
+                  className="btn-edit"
+                  onClick={() => setIsEditingProfile(true)}
+                >
+                  <FaUser /> Edit Profile
+                </button>
+              ) : (
+                <div className="profile-actions">
+                  <button 
+                    className="btn-cancel"
+                    onClick={() => {
+                      setIsEditingProfile(false);
+                      fetchUserProfile(user.uid);
+                    }}
+                    disabled={isUpdating}
+                  >
+                    <FaTimes /> Cancel
+                  </button>
+                  <button 
+                    className="btn-save"
+                    onClick={saveProfile}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? 'Saving...' : <><FaSave /> Save Changes</>}
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="profile-content">
+              <div className="profile-image-container">
+                {isEditingProfile ? (
+                  <div className="image-upload-wrapper">
+                    <div 
+                      className="profile-image"
+                      onClick={() => fileInputRef.current.click()}
+                    >
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Profile" />
+                      ) : (
+                        <div className="empty-avatar">
+                          <FaUser />
+                        </div>
+                      )}
+                      <div className="image-overlay">
+                        <FaCamera />
+                        <span>Change Photo</span>
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleProfileImageChange}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                ) : (
+                  <div className="profile-image">
+                    {userProfile.photoURL ? (
+                      <img src={userProfile.photoURL} alt="Profile" />
+                    ) : (
+                      <div className="empty-avatar">
+                        <FaUser />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <div className="profile-details">
+                {isEditingProfile ? (
+                  <>
+                    <div className="form-group">
+                      <label>Full Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={userProfile.name}
+                        onChange={handleProfileChange}
+                        placeholder="Enter your name"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Email</label>
+                      <input
+                        type="email"
+                        value={userProfile.email}
+                        disabled
+                        placeholder="Email"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Location</label>
+                      <input
+                        type="text"
+                        name="location"
+                        value={userProfile.location}
+                        onChange={handleProfileChange}
+                        placeholder="Enter your location"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3>{userProfile.name || 'No Name'}</h3>
+                    <p className="email">{userProfile.email}</p>
+                    {userProfile.location && (
+                      <p className="location">
+                        <i className="fas fa-map-marker-alt"></i> {userProfile.location}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Subscription Status */}
         <div className="subscription-status">
           <div className="subscription-card">
             <div className="subscription-header">

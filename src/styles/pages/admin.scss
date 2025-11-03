@@ -1,5 +1,225 @@
 .admin-page {
   padding: $spacing-lg 0;
+  
+  // Profile Section Styles
+  .profile-section {
+    margin-bottom: $spacing-xl;
+    
+    .profile-card {
+      background: $white;
+      border-radius: $border-radius-md;
+      box-shadow: $shadow-sm;
+      overflow: hidden;
+      
+      .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: $spacing-md $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        
+        h2 {
+          margin: 0;
+          font-size: $font-size-lg;
+          color: $text-color;
+        }
+        
+        .btn-edit, .btn-save, .btn-cancel {
+          display: inline-flex;
+          align-items: center;
+          gap: $spacing-xs;
+          padding: $spacing-xs $spacing-sm;
+          border-radius: $border-radius-sm;
+          font-size: $font-size-sm;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid transparent;
+          
+          svg {
+            font-size: $font-size-sm;
+          }
+        }
+        
+        .btn-edit {
+          background-color: $primary-color;
+          color: white;
+          
+          &:hover {
+            background-color: darken($primary-color, 10%);
+          }
+        }
+        
+        .profile-actions {
+          display: flex;
+          gap: $spacing-xs;
+        }
+        
+        .btn-save {
+          background-color: $success-color;
+          color: white;
+          
+          &:hover {
+            background-color: darken($success-color, 10%);
+          }
+          
+          &:disabled {
+            background-color: lighten($success-color, 20%);
+            cursor: not-allowed;
+          }
+        }
+        
+        .btn-cancel {
+          background-color: $light-bg;
+          color: $text-muted;
+          border-color: $border-color;
+          
+          &:hover {
+            background-color: darken($light-bg, 5%);
+          }
+        }
+      }
+      
+      .profile-content {
+        display: flex;
+        padding: $spacing-lg;
+        gap: $spacing-xl;
+        
+        @media (max-width: 768px) {
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        
+        .profile-image-container {
+          position: relative;
+          flex-shrink: 0;
+          
+          .profile-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid $white;
+            box-shadow: $shadow-sm;
+            cursor: pointer;
+            
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+            
+            .empty-avatar {
+              width: 100%;
+              height: 100%;
+              background: $light-bg;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: $text-muted;
+              font-size: 2.5rem;
+            }
+            
+            .image-overlay {
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.5);
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              opacity: 0;
+              transition: opacity 0.3s ease;
+              font-size: 0.8rem;
+              
+              svg {
+                margin-bottom: 4px;
+              }
+            }
+            
+            &:hover .image-overlay {
+              opacity: 1;
+            }
+          }
+          
+          .image-upload-wrapper {
+            position: relative;
+            
+            input[type="file"] {
+              display: none;
+            }
+          }
+        }
+        
+        .profile-details {
+          flex-grow: 1;
+          
+          h3 {
+            margin: 0 0 $spacing-xs;
+            font-size: 1.5rem;
+            color: $text-color;
+          }
+          
+          .email {
+            color: $text-muted;
+            margin: 0 0 $spacing-sm;
+            font-size: 0.9rem;
+          }
+          
+          .location {
+            display: flex;
+            align-items: center;
+            gap: $spacing-xs;
+            color: $text-muted;
+            font-size: 0.9rem;
+            margin: 0;
+            
+            i {
+              font-size: 1rem;
+            }
+          }
+          
+          .form-group {
+            margin-bottom: $spacing-md;
+            
+            label {
+              display: block;
+              margin-bottom: $spacing-xs;
+              font-weight: 500;
+              color: $text-color;
+              font-size: 0.9rem;
+            }
+            
+            input {
+              width: 100%;
+              padding: $spacing-xs $spacing-sm;
+              border: 1px solid $border-color;
+              border-radius: $border-radius-sm;
+              font-size: 0.9rem;
+              transition: border-color 0.2s ease, box-shadow 0.2s ease;
+              
+              &:focus {
+                outline: none;
+                border-color: $primary-color;
+                box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+              }
+              
+              &:disabled {
+                background-color: $light-bg;
+                cursor: not-allowed;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   .subscription-status {
     margin-bottom: $spacing-xl;
