@@ -5,6 +5,215 @@
   .profile-section {
     margin-bottom: $spacing-xl;
     
+    .payment-methods {
+      margin-top: $spacing-lg;
+      
+      h4 {
+        margin: $spacing-md 0 $spacing-md;
+        font-size: $font-size-md;
+        color: $text-color;
+        font-weight: 600;
+      }
+      
+      .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: $spacing-sm;
+        margin-bottom: $spacing-md;
+      }
+      
+      .payment-method {
+        background: $white;
+        border-radius: $border-radius-md;
+        border: 1px solid $border-color;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          transform: translateY(-2px);
+        }
+        
+        &-content {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+        
+        &-image {
+          height: 100px;
+          padding: $spacing-md;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: $light-bg;
+          border-bottom: 1px solid $border-color;
+          
+          img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            object-fit: contain;
+            border-radius: 4px;
+          }
+        }
+        
+        &-info {
+          padding: $spacing-sm $spacing-md;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex: 1;
+        }
+        
+        &-name {
+          font-weight: 500;
+          color: $text-color;
+          margin-right: $spacing-sm;
+          word-break: break-word;
+        }
+        
+        .btn-remove {
+          background: none;
+          border: none;
+          color: $danger-color;
+          font-size: $font-size-lg;
+          cursor: pointer;
+          padding: $spacing-xs;
+          line-height: 1;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          
+          &:hover {
+            background: rgba($danger-color, 0.1);
+            color: darken($danger-color, 10%);
+          }
+        }
+      }
+      
+      .add-payment-method {
+        display: flex;
+        gap: $spacing-sm;
+        margin-top: $spacing-md;
+        
+        input[type="text"] {
+          flex: 1;
+          padding: $spacing-sm $spacing-md;
+          border: 1px solid $border-color;
+          border-radius: $border-radius-sm;
+          font-size: $font-size-sm;
+        }
+        
+        .file-upload-btn {
+          display: inline-flex;
+          align-items: center;
+          padding: $spacing-sm $spacing-md;
+          background: $light-bg;
+          border: 1px dashed $border-color;
+          border-radius: $border-radius-sm;
+          cursor: pointer;
+          font-size: $font-size-sm;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            border-color: $primary-color;
+            color: $primary-color;
+          }
+          
+          input[type="file"] {
+            display: none;
+          }
+        }
+        
+        .btn-add {
+          background: $primary-color;
+          color: white;
+          border: none;
+          border-radius: $border-radius-sm;
+          padding: $spacing-sm $spacing-lg;
+          cursor: pointer;
+          font-size: $font-size-sm;
+          transition: background-color 0.2s ease;
+          
+          &:hover:not(:disabled) {
+            background: darken($primary-color, 10%);
+          }
+          
+          &:disabled {
+            background: lighten($primary-color, 20%);
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+    
+    .payment-methods-preview {
+      margin-top: $spacing-xl;
+      
+      h4 {
+        margin: $spacing-lg 0 $spacing-sm;
+        font-size: $font-size-md;
+        color: $text-color;
+        font-weight: 600;
+      }
+      
+      .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: $spacing-sm;
+      }
+      
+      .payment-method-badge {
+        background: $white;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .payment-method-content {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+        
+        .payment-method-image {
+          height: 60px;
+          padding: $spacing-sm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: $light-bg;
+          border-bottom: 1px solid $border-color;
+          
+          img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            object-fit: contain;
+          }
+        }
+        
+        .payment-method-name {
+          padding: $spacing-xs $spacing-sm;
+          font-size: $font-size-sm;
+          text-align: center;
+          color: $text-color;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+    
     .profile-card {
       background: $white;
       border-radius: $border-radius-md;

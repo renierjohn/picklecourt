@@ -39,7 +39,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/book/:courtId" element={<Courts />} />
+              <Route path="/book/:userId" element={<Courts />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
               <Route path="/booking-summary/:courtId/:date/:times" element={<BookingSummary />} />
               <Route

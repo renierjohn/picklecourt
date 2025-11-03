@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
-import { FaUser, FaCamera, FaSave, FaTimes } from 'react-icons/fa';
+import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt } from 'react-icons/fa';
 import '../styles/pages/admin.scss';
+import '../styles/components/_booking-modal.scss';
 
 export const Admin = () => {
   const db = getFirestore();
@@ -17,11 +18,14 @@ export const Admin = () => {
   const [courts, setCourts] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   const [courtForm, setCourtForm] = useState({ 
     id: null, 
     name: '', 
     location: '',
+    price: '0.00',
     status: 'active',
     unavailableDays: [],
     unavailableHours: [''],
@@ -44,9 +48,13 @@ export const Admin = () => {
     name: '',
     email: '',
     location: '',
-    photoURL: ''
+    photoURL: '',
+    paymentMethods: []
   });
   const [profileImage, setProfileImage] = useState(null);
+  const [newPaymentMethod, setNewPaymentMethod] = useState({ name: '', image: null });
+  const [paymentImages, setPaymentImages] = useState([]);
+  const [paymentImagePreviews, setPaymentImagePreviews] = useState([]);
   const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -132,7 +140,8 @@ export const Admin = () => {
           name: userData.name || '',
           email: userData.email || user.email || '',
           location: userData.location || '',
-          photoURL: userData.photoURL || ''
+          photoURL: userData.photoURL || '',
+          paymentMethods: userData.paymentMethods || []
         });
         setImagePreview(userData.photoURL || '');
       }
@@ -141,7 +150,6 @@ export const Admin = () => {
     }
   };
 
-  // Handle profile image change
   // Handle profile image change
   const handleProfileImageChange = (e) => {
     const file = e.target.files[0];
@@ -153,6 +161,82 @@ export const Admin = () => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePaymentImageChange = (e, index) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Store the file for upload
+      const updatedPayments = [...paymentImages];
+      updatedPayments[index] = file;
+      setPaymentImages(updatedPayments);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const updatedPreviews = [...paymentImagePreviews];
+        updatedPreviews[index] = reader.result;
+        setPaymentImagePreviews(updatedPreviews);
+        
+        // Also update the newPaymentMethod state for the preview
+        setNewPaymentMethod(prev => ({
+          ...prev,
+          image: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addPaymentMethod = () => {
+    if (newPaymentMethod.name && paymentImages[0]) {
+      const newMethod = {
+        name: newPaymentMethod.name,
+        image: null, // Will be updated with the URL after upload
+        imageFile: paymentImages[0] // Store the file for upload when saving
+      };
+      
+      setUserProfile(prev => ({
+        ...prev,
+        paymentMethods: [...prev.paymentMethods, newMethod]
+      }));
+      
+      // Reset the form
+      setNewPaymentMethod({ name: '', image: null });
+      setPaymentImages([]);
+      setPaymentImagePreviews([]);
+      
+      // Reset the file input
+      const fileInputs = document.querySelectorAll('.add-payment-method input[type="file"]');
+      fileInputs.forEach(input => input.value = '');
+      
+      // Show success message
+      setModalConfig({
+        isOpen: true,
+        title: 'Success',
+        message: 'Payment method added successfully. Don\'t forget to save your profile to apply changes.',
+        confirmText: 'OK',
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
+    } else {
+      setModalConfig({
+        isOpen: true,
+        title: 'Error',
+        message: 'Please provide both a name and an image for the payment method',
+        confirmText: 'OK',
+        danger: true,
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
+    }
+  };
+
+  const removePaymentMethod = (index) => {
+    const updatedPayments = [...userProfile.paymentMethods];
+    updatedPayments.splice(index, 1);
+    setUserProfile(prev => ({
+      ...prev,
+      paymentMethods: updatedPayments
+    }));
   };
 
   // Handle profile form field changes
@@ -186,6 +270,34 @@ export const Admin = () => {
         setImagePreview(downloadURL);
       }
 
+      // Process payment methods
+      const updatedPaymentMethods = [];
+      const storage = getStorage();
+      
+      // Process existing and new payment methods
+      for (const method of userProfile.paymentMethods) {
+        // If it's a new method with a file to upload
+        if (method.imageFile) {
+          const storageRef = ref(storage, `payment_methods/${user.uid}/${Date.now()}_${method.name.replace(/\s+/g, '_')}`);
+          await uploadBytes(storageRef, method.imageFile);
+          const downloadURL = await getDownloadURL(storageRef);
+          
+          updatedPaymentMethods.push({
+            name: method.name,
+            image: downloadURL
+          });
+        } 
+        // If it's an existing method with a URL
+        else if (method.image) {
+          updatedPaymentMethods.push({
+            name: method.name,
+            image: method.image
+          });
+        }
+      }
+      
+      updates.paymentMethods = updatedPaymentMethods;
+
       await updateDoc(doc(db, 'users', user.uid), updates);
       
       // Update local state
@@ -196,6 +308,7 @@ export const Admin = () => {
       
       setIsEditingProfile(false);
       setProfileImage(null);
+      setPaymentImages([]);
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -203,52 +316,77 @@ export const Admin = () => {
     }
   };
 
-  // Fetch courts and bookings data from Firestore
+  // Create a map for court lookups
+  const [courtsMap, setCourtsMap] = useState({});
+  
+  // Fetch courts data from Firestore
   useEffect(() => {
     if (!user) return;
-    
-    const userId = user.uid;
-    
-    // Fetch user profile
-    fetchUserProfile(userId);
     
     // Subscribe to courts collection
     const courtsQuery = query(
       collection(db, 'courts'),
-      where('userId', '==', userId)
+      where('userId', '==', user.uid)
     );
     
     const unsubscribeCourts = onSnapshot(courtsQuery, (snapshot) => {
-      const courtsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const courtsData = [];
+      const newCourtsMap = {};
+      
+      snapshot.forEach((doc) => {
+        const courtData = { id: doc.id, ...doc.data() };
+        newCourtsMap[doc.id] = courtData.name;
+        courtsData.push(courtData);
+      });
+      
       setCourts(courtsData);
+      setCourtsMap(newCourtsMap); // Update the courts map
       setLoading(false);
     });
     
-    // Subscribe to bookings collection
-    const bookingsQuery = query(
-      collection(db, 'bookings'),
-      where('userId', '==', userId)
-    );
+    return () => unsubscribeCourts();
+  }, [user]);
+  
+  // Fetch bookings data after courts are loaded
+  useEffect(() => {
+    if (Object.keys(courtsMap).length === 0) return;
+    
+    const bookingsQuery = query(collection(db, 'bookings'));
     
     const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
-      const bookingsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Convert Firestore Timestamp to Date
-        date: doc.data().date?.toDate() || new Date()
-      }));
+      const bookingsData = snapshot.docs.map((doc) => {
+        const bookingData = doc.data();
+        const courtId = bookingData.courtId;
+        const courtName = courtId ? (courtsMap[courtId] || 'Unknown Court') : 'Unknown Court';
+        
+        // Format the date for display
+        const bookingDate = bookingData.date?.toDate ? bookingData.date.toDate() : new Date(bookingData.date);
+        const formattedDate = format(bookingDate, 'MMM d, yyyy');
+        
+        // Format the time slots
+        let formattedTimes = '';
+        if (Array.isArray(bookingData.times)) {
+          formattedTimes = bookingData.times.join(', ');
+        } else if (bookingData.time) {
+          formattedTimes = bookingData.time;
+        }
+        
+        return {
+          id: doc.id,
+          ...bookingData,
+          courtName,
+          formattedDate,
+          formattedTimes,
+          date: bookingData.date,
+          totalPrice: bookingData.totalPrice || 0
+        };
+      });
+      
       setBookings(bookingsData);
     });
     
-    // Cleanup subscriptions on unmount
-    return () => {
-      unsubscribeCourts();
-      unsubscribeBookings();
-    };
-  }, [user]);
+    return () => unsubscribeBookings();
+  }, [courtsMap]); // This effect depends on courtsMap
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -277,6 +415,7 @@ export const Admin = () => {
       const courtData = {
         name: courtForm.name.trim(),
         location: courtForm.location.trim(),
+        price: parseFloat(courtForm.price) || 0,
         status: courtForm.status || 'active',
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
@@ -318,6 +457,7 @@ export const Admin = () => {
       id: court.id,
       name: court.name,
       location: court.location,
+      price: court.price || '0.00',
       status: court.status || 'active',
       unavailableDays: court.unavailableDays || [],
       unavailableHours: court.unavailableHours?.length ? [...court.unavailableHours, ''] : [''],
@@ -333,6 +473,7 @@ export const Admin = () => {
       id: null, 
       name: '', 
       location: '',
+      price: '0.00',
       status: 'active',
       unavailableDays: [],
       unavailableHours: [''],
@@ -402,6 +543,49 @@ export const Admin = () => {
       });
     }
   };
+
+  const handleViewBooking = (booking) => {  
+    setSelectedBooking(booking);
+  };
+
+  const handleCloseBookingModal = () => {
+    setSelectedBooking(null);
+    setZoomedImage(null);
+  };
+
+  const toggleZoomImage = (imageUrl) => {
+    setZoomedImage(zoomedImage ? null : imageUrl);
+  };
+
+  const handleConfirmBooking = async (bookingId) => {
+    try {
+      const bookingRef = doc(db, 'bookings', bookingId);
+      await updateDoc(bookingRef, {
+        status: 'confirmed',
+        updatedAt: new Date().toISOString()
+      });
+      
+      setModalConfig({
+        isOpen: true,
+        title: 'Success',
+        message: 'Booking has been confirmed successfully!',
+        confirmText: 'OK',
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+      });
+      
+      // Close the booking details modal if open
+      setSelectedBooking(null);
+    } catch (error) {
+      console.error('Error confirming booking:', error);
+      setModalConfig({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to confirm booking. Please try again.',
+        confirmText: 'OK',
+        danger: true
+      });
+    }
+  };
   
   const handleMaintenance = (courtId) => {
     const court = courts.find(c => c.id === courtId);
@@ -424,11 +608,22 @@ export const Admin = () => {
     });
   };
 
-  // Filter upcoming bookings (today and future)
-  const upcomingBookings = bookings
-    .filter(booking => booking.date && new Date(booking.date) >= new Date())
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  // Filter upcoming bookings (today and future) for managed courts
+  const managedCourtIds = courts.map(court => court.id);
 
+  const upcomingBookings = bookings
+    .filter(booking => {
+      const bookingDate = booking.date?.toDate ? booking.date.toDate() : new Date(booking.date);
+      const isUpcoming = bookingDate >= new Date();
+      const isManagedCourt = managedCourtIds.includes(booking.courtId);  
+      return booking.date && isUpcoming && isManagedCourt;
+    })
+    .sort((a, b) => {
+      const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+      const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+      return dateA - dateB;
+    })
+    .slice(0, 20); // Show the next 20 upcoming bookings
   // Filter recent bookings (past bookings)
   const recentBookings = bookings
     .filter(booking => booking.date && new Date(booking.date) < new Date())
@@ -555,6 +750,78 @@ export const Admin = () => {
                         placeholder="Enter your location"
                       />
                     </div>
+                    
+                    <div className="payment-methods">
+                      <h4>Payment Methods</h4>
+                      <div className="payment-methods-grid">
+                        {userProfile.paymentMethods?.map((method, index) => (
+                          <div key={index} className="payment-method">
+                            <div className="payment-method-content">
+                              <div className="payment-method-image">
+                                <img src={method.image} alt={method.name} />
+                              </div>
+                              <div className="payment-method-info">
+                                <div className="payment-method-name">{method.name}</div>
+                                <button 
+                                  type="button" 
+                                  className="btn-remove"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removePaymentMethod(index);
+                                  }}
+                                  disabled={isUpdating}
+                                  title="Remove payment method"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="add-payment-method">
+                        <input
+                          type="text"
+                          value={newPaymentMethod.name}
+                          onChange={(e) => setNewPaymentMethod({
+                            ...newPaymentMethod,
+                            name: e.target.value
+                          })}
+                          placeholder="Payment method name"
+                        />
+                        <label className="file-upload-btn">
+                          <input
+                            type="file"
+                            onChange={(e) => handlePaymentImageChange(e, 0)}
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                          />
+                          <span>Upload Logo</span>
+                          {paymentImagePreviews[0] && (
+                            <img 
+                              src={paymentImagePreviews[0]} 
+                              alt="Preview" 
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                marginLeft: '8px',
+                                objectFit: 'cover',
+                                borderRadius: '4px'
+                              }}
+                            />
+                          )}
+                        </label>
+                        <button 
+                          type="button" 
+                          className="btn-add"
+                          onClick={addPaymentMethod}
+                          disabled={!newPaymentMethod.name.trim() || !paymentImages[0]}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -564,6 +831,25 @@ export const Admin = () => {
                       <p className="location">
                         <i className="fas fa-map-marker-alt"></i> {userProfile.location}
                       </p>
+                    )}
+                    {userProfile.paymentMethods?.length > 0 && (
+                      <div className="payment-methods-preview">
+                      <h4>Payment Methods</h4>
+                      <div className="payment-methods-grid">
+                        {userProfile.paymentMethods.map((method, index) => (
+                          <div key={index} className="payment-method-badge">
+                            <div className="payment-method-content">
+                              {method.image && (
+                                <div className="payment-method-image">
+                                  <img src={method.image} alt={method.name} />
+                                </div>
+                              )}
+                              <div className="payment-method-name">{method.name}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      </div>
                     )}
                   </>
                 )}
@@ -665,6 +951,20 @@ export const Admin = () => {
                   onChange={(e) => setCourtForm({...courtForm, location: e.target.value})}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <div className="input-with-prefix">
+                  <span className="input-prefix">Php</span>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    value={courtForm.price}
+                    onChange={(e) => setCourtForm({...courtForm, price: e.target.value})}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -771,6 +1071,7 @@ export const Admin = () => {
                 <div className="court-info">
                   <h3>{court.name}</h3>
                   <span className="court-location">{court.location}</span>
+                  <div className="court-price">Php {parseFloat(court.price || 0).toFixed(2)}</div>
                   {getStatusBadge(court.status)}
                 </div>
                 <div className="court-actions">
@@ -808,49 +1109,65 @@ export const Admin = () => {
           </div>
           
           {upcomingBookings.length > 0 ? (
-            <table className="bookings-table">
-              <thead>
-                <tr>
-                  <th>Court</th>
-                  <th>User</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcomingBookings.map(booking => (
-                  <tr key={booking.id}>
-                    <td>{booking.courtName}</td>
-                    <td>{booking.userName}</td>
-                    <td>{format(booking.date, 'MMM d, yyyy')}</td>
-                    <td>{booking.time}</td>
-                    <td>{getStatusBadge(booking.status)}</td>
-                    <td>PHP {booking.amount.toFixed(2)}</td>
-                    <td>
-                      <button 
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => {}}
-                        title="View details"
-                      >
-                        View
-                      </button>
-                      
-                       <button 
-                        className="btn btn-sm btn-outline-success"
-                        onClick={() => {}}
-                        title="Confirm"
-                        disabled={booking.status === 'confirmed' ? 'disabled' : '' }
-                      >
-                        Confirm
-                      </button>
-                    </td>
+            <div className="table-responsive">
+              <table className="bookings-table">
+                <thead>
+                  <tr>
+                    <th>Court</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Time Slots</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {upcomingBookings.map(booking => (
+                    <tr key={booking.id}>
+                      <td>{booking.courtName}</td>
+                      <td>{booking.user ? booking.user.name : 'Guest'}</td>
+                      <td>{booking.formattedDate}</td>
+                      <td>{booking.formattedTimes}</td>
+                      <td>
+                        {booking.user && (
+                          <div className="contact-info">
+                            <div>{booking.user.phone}</div>
+                            {booking.user.email && <div className="text-muted small">{booking.user.email}</div>}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${booking.status || 'pending'}`}>
+                          {booking.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td>₱{booking.totalPrice?.toFixed(2) || '0.00'}</td>
+                      <td className="actions">
+                        <div className="btn-group">
+                          <button 
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={() => handleViewBooking(booking)}
+                            title="View details"
+                          >
+                            View
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-outline-success"
+                            onClick={() => handleConfirmBooking(booking.id)}
+                            title="Confirm"
+                            disabled={booking.status === 'confirmed'}
+                          >
+                            {booking.status === 'confirmed' ? 'Confirmed' : 'Confirm'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="no-bookings">
               <p>No upcoming bookings found.</p>
@@ -860,6 +1177,138 @@ export const Admin = () => {
         
       </div>
       
+      {/* Booking Details Modal */}
+      {selectedBooking && (
+        <div className="booking-modal">
+          <div className="modal-overlay" onClick={handleCloseBookingModal}>
+            {zoomedImage && (
+              <div className="zoomed-image-overlay" onClick={handleCloseBookingModal}>
+                <img 
+                  src={zoomedImage} 
+                  alt="Payment proof" 
+                  className="zoomed-image"
+                  onClick={e => e.stopPropagation()}
+                />
+              </div>
+            )}
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Booking Details</h3>
+                <button className="close-btn" onClick={handleCloseBookingModal}>&times;</button>
+              </div>
+              <div className="modal-body">
+                <div className="booking-details">
+                  <div className="detail-card">
+                    <span className="detail-label">
+                      <FaMapMarkerAlt className="mr-1" /> Court
+                    </span>
+                    <span className="detail-value">{selectedBooking.courtName}</span>
+                  </div>
+                  
+                  <div className="detail-card">
+                    <span className="detail-label">
+                      <FaUserAlt className="mr-1" /> Customer
+                    </span>
+                    <span className="detail-value">{selectedBooking.user?.name || 'Guest'}</span>
+                  </div>
+                  
+                  <div className="detail-card">
+                    <span className="detail-label">
+                      <FaCalendarAlt className="mr-1" /> Date
+                    </span>
+                    <span className="detail-value">{selectedBooking.formattedDate}</span>
+                  </div>
+                  
+                  <div className="detail-card">
+                    <span className="detail-label">
+                      <FaClock className="mr-1" /> Time Slots
+                    </span>
+                    <span className="detail-value">{selectedBooking.formattedTimes}</span>
+                  </div>
+                  
+                  <div className="detail-card">
+                    <span className="detail-label">Status</span>
+                    <span className={`detail-value status ${selectedBooking.status || 'pending'}`}>
+                      {selectedBooking.status ? selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1) : 'Pending'}
+                    </span>
+                  </div>
+                  
+                  <div className="detail-card">
+                    <span className="detail-label">
+                      <FaMoneyBillWave className="mr-1" /> Amount
+                    </span>
+                    <span className="detail-value amount">₱{selectedBooking.totalPrice?.toFixed(2) || '0.00'}</span>
+                  </div>
+                  
+                  {selectedBooking.phone && (
+                    <div className="detail-card">
+                      <span className="detail-label">
+                        <FaPhone className="mr-1" /> Contact
+                      </span>
+                      <a href={`tel:${selectedBooking.phone}`} className="detail-value">
+                        {selectedBooking.phone}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {selectedBooking.email && (
+                    <div className="detail-card">
+                      <span className="detail-label">
+                        <FaEnvelope className="mr-1" /> Email
+                      </span>
+                      <a href={`mailto:${selectedBooking.email}`} className="detail-value">
+                        {selectedBooking.email}
+                      </a>
+                    </div>
+                  )}
+                </div>
+                
+                {selectedBooking.notes && (
+                  <div className="notes-section">
+                    <div className="notes-label">Additional Notes</div>
+                    <div className="notes-content">{selectedBooking.notes}</div>
+                  </div>
+                )}
+
+                {(selectedBooking.paymentProof || selectedBooking.paymentImage) && (
+                  <div className="payment-proof-section">
+                    <div className="section-title">
+                      <FaReceipt /> Payment Proof
+                    </div>
+                    <div className="payment-proof-image-container">
+                      <img 
+                        src={selectedBooking.paymentProof || selectedBooking.paymentImage} 
+                        alt="Payment proof" 
+                        className="payment-proof-image"
+                        onClick={() => toggleZoomImage(selectedBooking.paymentProof || selectedBooking.paymentImage)}
+                      />
+                      <div className="zoom-hint">Click to zoom</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-footer">
+                <button 
+                  className="btn btn-secondary"
+                  onClick={handleCloseBookingModal}
+                >
+                  Close
+                </button>
+                {selectedBooking.status !== 'confirmed' && (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => handleConfirmBooking(selectedBooking.id)}
+                  >
+                    Confirm Booking
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmationModal
         isOpen={modalConfig.isOpen}
         title={modalConfig.title}

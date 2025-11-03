@@ -1,34 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format, addDays, isToday, isWeekend, isSameDay } from 'date-fns';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import firebaseConfig from '../firebase/config';
+import { initializeApp } from 'firebase/app';
 import { CourtCard } from '../components/CourtCard';
 import HeroBanner from '../components/HeroBanner';
 import '../styles/pages/home.scss';
 
- // Court data - availableSlots will be calculated based on selected time
-const courts = [
-  {
-    id: 1,
-    name: 'Court 1',
-    location: 'Main Building',
-    image: 'https://placehold.co/600x400/4285F4/FFFFFF?text=Court+1',
-    maxSlots: 4,
-  },
-  {
-    id: 2,
-    name: 'Court 2',
-    location: 'Outdoor Area',
-    image: 'https://placehold.co/600x400/34A853/FFFFFF?text=Court+2',
-    maxSlots: 5,
-  },
-  {
-    id: 3,
-    name: 'Court 3',
-    location: 'Sports Complex',
-    image: 'https://placehold.co/600x400/EA4335/FFFFFF?text=Court+3',
-    maxSlots: 6,
-  },
-];
+// Court data will be fetched from Firebase
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Sample booking data - in a real app, this would come from an API
 const sampleBookings = [
@@ -66,17 +49,116 @@ const sampleBookings = [
 
 export const Courts = () => {
   const navigate = useNavigate();
+  const { userId } = useParams();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
-  const [bookings] = useState(sampleBookings); // In a real app, this would be fetched from an API
-  
-  // Set the first court as selected by default
-  useState(() => {
-    if (courts.length > 0 && !selectedCourt) {
-      setSelectedCourt(courts[0].id);
+  const [courts, setCourts] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch courts for the specific user
+  useEffect(() => {
+    console.log('Fetching courts for user ID:', userId);
+    
+    const fetchCourts = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching courts from Firestore...');
+        
+        // Fetch courts filtered by userId
+        const courtsRef = collection(db, 'courts');
+        const q = query(courtsRef, where('userId', '==', userId));
+        const querySnapshot = await getDocs(q);
+        
+        console.log('Firestore query completed. Number of courts found:', querySnapshot.size);
+        
+        const courtsList = [];
+        querySnapshot.forEach((doc) => {
+          const courtData = { id: doc.id, ...doc.data() };
+          console.log('Court data:', courtData);
+          courtsList.push(courtData);
+        });
+ 
+        setCourts(courtsList);
+        
+        // Set the first court as selected if available
+        if (courtsList.length > 0) {
+          console.log('Setting selected court to:', courtsList[0].id);
+          setSelectedCourt(courtsList[0].id);
+        } else {
+          console.log('No courts found for this user');
+        }
+        
+        // In a real app, you would also fetch bookings here
+        // This is a simplified example
+        setBookings(sampleBookings);
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching courts:', err);
+        setError('Failed to load courts. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchCourts();
+    } else {
+      console.error('No user ID provided in URL');
+      setError('No user specified. Please check the URL.');
+      setLoading(false);
     }
-  }, []);
+  }, [userId]);
+  
+
+  if (loading) {
+    return (
+      <div className="home">
+        <HeroBanner />
+        <div className="container">
+          <div className="loading">
+            <p>Loading courts...</p>
+            <p>Please wait while we fetch the available courts.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="home">
+        <HeroBanner />
+        <div className="container">
+          <div className="error">
+            <h3>Error Loading Courts</h3>
+            <p>{error}</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (courts.length === 0) {
+    return (
+      <div className="home">
+        <HeroBanner />
+        <div className="container">
+          <div className="no-courts">
+            <p>No courts found for this user.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Check if a time slot is during lunch break (12:00 - 13:00)
   const isLunchBreak = (time24) => {
@@ -251,23 +333,52 @@ export const Courts = () => {
         <div className="container">
           <h2 className="section-title">Select a Court</h2>
           <div className="courts-grid">
-            {courts.map((court) => (
+            {courts.length === 0 ? (
+              <div className="no-courts">
+                <p>No courts found for this user.</p>
+                <p>Please check back later or contact support if you believe this is an error.</p>
+              </div>
+            ) : courts.map((court) => (
               <div 
                 key={court.id} 
-                className={`court-selection ${selectedCourt === court.id ? 'selected' : ''}`}
+                className={`court-selection ${selectedCourt === court.id ? 'selected' : ''} ${
+                  court.status === 'maintenance' ? 'under-maintenance' : ''
+                }`}
                 onClick={() => {
-                  setSelectedCourt(court.id);
-                  setSelectedTimes([]); // Reset selected times when changing court
+                  if (court.status !== 'maintenance') {
+                    setSelectedCourt(court.id);
+                    setSelectedTimes([]); // Reset selected times when changing court
+                  }
                 }}
               >
                 <div className="court-image">
-                  <img src={court.image} alt={court.name} />
+                  <img 
+                    src={court.image} 
+                    alt={court.name} 
+                    style={court.status === 'maintenance' ? { opacity: 0.6 } : {}} 
+                  />
+                  {court.status === 'maintenance' && (
+                    <div className="maintenance-overlay">
+                      <span className="maintenance-badge">Under Maintenance</span>
+                    </div>
+                  )}
                 </div>
                 <div className="court-info">
-                  <h3>{court.name}</h3>
+                  <h3>
+                    {court.name}
+                    {court.status === 'maintenance' && (
+                      <span className="maintenance-tag">Maintenance</span>
+                    )}
+                  </h3>
                   <p>{court.location}</p>
                   <div className="court-availability">
-                    <span className="slots">Max Slots: {court.maxSlots}</span>
+                    {court.status === 'maintenance' ? (
+                      <span className="maintenance-message">
+                        Currently unavailable for booking
+                      </span>
+                    ) : (
+                      <span className="slots">Max Slots: {court.maxSlots}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -296,8 +407,11 @@ export const Courts = () => {
                   </ul>
                   <button 
                     className="book-now-button"
+                    disabled={courts.find(c => c.id === selectedCourt)?.status === 'maintenance'}
                     onClick={() => {
                       const selectedCourtData = courts.find(c => c.id === selectedCourt);
+                      if (selectedCourtData?.status === 'maintenance') return;
+                      
                       const dateStr = format(selectedDate, 'yyyy-MM-dd');
                       const timesStr = selectedTimes.join(',');
                       
@@ -305,7 +419,8 @@ export const Courts = () => {
                         state: {
                           court: selectedCourtData,
                           date: selectedDate,
-                          times: selectedTimes
+                          times: selectedTimes,
+                          userId: userId
                         }
                       });
                     }}

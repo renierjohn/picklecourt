@@ -1,35 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, parseISO, addHours } from 'date-fns';
+import { doc, getDoc, getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeApp } from 'firebase/app';
+import firebaseConfig from '../firebase/config';
 import '../styles/pages/booking-summary.scss';
 
-// Mock data for the court
-const courtData = {
-  1: {
-    id: 1,
-    name: 'Court 1',
-    location: 'Main Building',
-    image: 'https://placehold.co/800x400/4285F4/FFFFFF?text=Court+1',
-    price: 25,
-    description: 'Indoor court with professional-grade surface and lighting. Perfect for both casual and competitive play.'
-  },
-  2: {
-    id: 2,
-    name: 'Court 2',
-    location: 'Outdoor Area',
-    image: 'https://placehold.co/800x400/34A853/FFFFFF?text=Court+2',
-    price: 20,
-    description: 'Outdoor court with beautiful surroundings. Enjoy fresh air while playing your favorite sport.'
-  },
-  3: {
-    id: 3,
-    name: 'Court 3',
-    location: 'Sports Complex',
-    image: 'https://placehold.co/800x400/EA4335/FFFFFF?text=Court+3',
-    price: 30,
-    description: 'Premium indoor court with professional setup and amenities. Ideal for tournaments and serious players.'
-  }
-};
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 export const BookingSummary = () => {
   const { courtId, date, times } = useParams();
@@ -42,11 +23,175 @@ export const BookingSummary = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [courtData, setCourtData] = useState(null);
+  const [courtOwner, setCourtOwner] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [paymentProof, setPaymentProof] = useState(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState(null);
+  const [isPaymentUploaded, setIsPaymentUploaded] = useState(false);
 
   // Parse URL parameters
   const bookingDate = date ? parseISO(date) : new Date();
   const selectedTimes = times ? times.split(',') : [];
   
+  console.log('URL Parameters:', { courtId, date, times });
+
+  // Fetch court data
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log('Starting fetchData with courtId:', courtId);
+      
+      if (!courtId) {
+        const errorMsg = 'Error: No court ID provided in URL';
+        console.error(errorMsg);
+        setError(errorMsg);
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        console.log('Fetching court data for ID:', courtId);
+        
+        // Log Firestore instance and database reference
+        console.log('Firestore instance:', db);
+        console.log('Collection path: courts/', courtId);
+        
+        const courtRef = doc(db, 'courts', courtId);
+        console.log('Court reference:', courtRef);
+        
+        const courtDoc = await getDoc(courtRef);
+        console.log('Court document snapshot:', {
+          exists: courtDoc.exists(),
+          id: courtDoc.id,
+          data: courtDoc.data()
+        });
+        
+        if (courtDoc.exists()) {
+          const courtData = {
+            id: courtDoc.id,
+            ...courtDoc.data()
+          };
+          console.log('Court data to set:', courtData);
+          
+          // Validate required fields
+          if (!courtData.name || !courtData.location) {
+            console.warn('Court data is missing required fields:', courtData);
+          }
+          
+          setCourtData(courtData);
+          console.log('Court data set in state');
+          
+          // Fetch court owner's information if userId exists
+          if (courtData.userId) {
+            try {
+              const userRef = doc(db, 'users', courtData.userId);
+              const userDoc = await getDoc(userRef);
+              
+              if (userDoc.exists()) {
+                const ownerData = userDoc.data();
+                setCourtOwner({
+                  id: userDoc.id,
+                  ...ownerData
+                });
+                console.log('Court owner data:', ownerData);
+                
+                // Pre-fill form with owner's payment methods if available
+                if (ownerData.paymentMethods?.length > 0) {
+                  console.log('Owner has payment methods available');
+                }
+              }
+            } catch (err) {
+              console.error('Error fetching court owner data:', err);
+              // Continue even if we can't fetch owner data
+            }
+          }
+          
+          // Set default form data
+          setFormData(prev => ({
+            ...prev,
+            fullName: '',
+            email: '',
+            phone: ''
+          }));
+          
+          setError(null);
+        } else {
+          const errorMsg = `No court found with ID: ${courtId}`;
+          console.error(errorMsg);
+          setError(errorMsg);
+        }
+      } catch (error) {
+        const errorMsg = `Error loading court data: ${error.message}`;
+        console.error(errorMsg, error);
+        setError(errorMsg);
+      } finally {
+        console.log('Finished loading, setting loading to false');
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [courtId]);
+  
+  // Add loading and error states to the UI
+  if (loading) {
+    return (
+      <div className="booking-summary">
+        <div className="container">
+          <div className="loading">
+            <h2>Loading Booking Information</h2>
+            <p>Please wait while we load the court details...</p>
+            <p>Court ID: {courtId}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="booking-summary">
+        <div className="container">
+          <div className="error-message">
+            <h2>Error Loading Booking</h2>
+            <p className="error-text">{error}</p>
+            <p>Court ID: {courtId || 'Not provided'}</p>
+            <p>Please try again or contact support if the problem persists.</p>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="booking-summary">
+        <div className="container">
+          <div className="error">
+            <h3>Error</h3>
+            <p>{error}</p>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Format time slots for display
   const formatTimeSlots = () => {
     if (selectedTimes.length === 0) return 'No time selected';
@@ -67,11 +212,8 @@ export const BookingSummary = () => {
     return `${firstTime} - ${endTime} (${selectedTimes.length} slots)`;
   };
 
-  // Get court data based on the ID from URL
-  const court = courtData[courtId];
-  
   // Calculate total price
-  const totalPrice = court ? (court.price * selectedTimes.length).toFixed(2) : '0.00';
+  const totalPrice = courtData ? (courtData.price * selectedTimes.length).toFixed(2) : '0.00';
   const currencySymbol = 'Php';
 
   const handleInputChange = (e) => {
@@ -82,23 +224,119 @@ export const BookingSummary = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // console.log('Booking submitted:', { court, formData, bookingDate, bookingTime });
-      setIsLoading(false);
-      setBookingSuccess(true);
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 3000);
-    }, 1500);
+  const handlePaymentProofChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPaymentProof(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentProofPreview(reader.result);
+        setIsPaymentUploaded(true);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  if (!court) {
+  const uploadPaymentProof = async (file) => {
+    try {
+      if (!file) return null;
+      
+      // Create a unique filename for the payment proof
+      const fileExt = file.name.split('.').pop();
+      const fileName = `payment_proofs/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const storageRef = ref(storage, fileName);
+      
+      // Upload the file
+      const snapshot = await uploadBytes(storageRef, file);
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading payment proof:', error);
+      throw new Error('Failed to upload payment proof. Please try again.');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isLoading) return;
+    
+    // If payment proof is not uploaded yet, trigger file input
+    if (!isPaymentUploaded) {
+      document.getElementById('payment-proof-input').click();
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Validate form
+      if (!formData.fullName || !formData.email || !formData.phone) {
+        throw new Error('Please fill in all required fields');
+      }
+      
+      if (!selectedTimes.length) {
+        throw new Error('No time slots selected');
+      }
+      
+      if (!paymentProof) {
+        throw new Error('Please upload payment proof');
+      }
+      
+      // Upload payment proof and get URL
+      const paymentProofUrl = await uploadPaymentProof(paymentProof);
+      
+      // Create booking data
+      const bookingData = {
+        courtId,
+        courtName: courtData?.name || 'Unknown Court',
+        courtOwnerId: courtData?.userId || '',  // Owner's user ID
+        date: bookingDate.toISOString(),
+        times: selectedTimes,
+        status: 'pending',
+        paymentMethod: courtOwner?.paymentMethods?.[selectedPaymentMethod]?.name || 'Not specified',
+        paymentStatus: 'pending',
+        paymentProof: paymentProofUrl, // Store the uploaded payment proof URL
+        paymentProofPreview: paymentProofPreview, // Keep preview for admin reference
+        totalPrice: selectedTimes.length * (courtData?.pricePerHour || 0),
+        user: {
+          id: userData?.uid || '',
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          ownerId: courtData?.userId || ''  // Also include ownerId in user object for easier querying
+        },
+        owner: {  // Add owner details for easier reference
+          id: courtData?.userId || '',
+          name: courtOwner?.name || 'Court Owner',
+          email: courtOwner?.email || ''
+        },
+        notes: formData.notes,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      // Add booking to Firestore
+      const docRef = await addDoc(collection(db, 'bookings'), bookingData);
+      console.log('Booking created with ID: ', docRef.id);
+      
+      setBookingSuccess(true);
+      
+      // Redirect to success page after a short delay
+      setTimeout(() => {
+        navigate('/bookings');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      setError(error.message || 'Failed to create booking. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!courtData || Object.keys(courtData).length === 0) {
     return (
       <div className="booking-summary">
         <div className="container">
@@ -125,7 +363,7 @@ export const BookingSummary = () => {
               </svg>
             </div>
             <h2>Booking Confirmed!</h2>
-            <p>Your booking for {court.name} has been confirmed. We've sent a confirmation to your email.</p>
+            <p>Your booking for {courtData?.name} has been confirmed. We've sent a confirmation to your email.</p>
             <button onClick={() => navigate('/')} className="back-button">
               Back to Home
             </button>
@@ -145,17 +383,65 @@ export const BookingSummary = () => {
             <h2>Booking Summary</h2>
             <div className="court-card">
               <div className="court-image">
-                <img src={court.image} alt={court.name} />
+                <img src={courtData?.image || '/default-court.jpg'} alt={courtData?.name || 'Court'} />
               </div>
               <div className="court-info">
-                <h3>{court.name}</h3>
-                <p className="location">{court.location}</p>
-                <p className="description">{court.description}</p>
-                
-                <div className="booking-details">
-                  <h3>Booking Details</h3>
-                  <div className="detail-row">
-                    <span className="label">Date:</span>
+                <h3>{courtData?.name || 'Court'}</h3>
+                <p className="location">{courtData?.location || 'Location not specified'}</p>
+                <p className="description">{courtData?.description || 'No description available.'}</p>
+                <div className="payment-method">
+                  <h3>Payment Method</h3>
+                  <p>Select your preferred payment method for this booking</p>
+                  <div className="payment-options">
+                    {courtOwner.paymentMethods.map((method, index) => (
+                      <label 
+                        key={index} 
+                        className={`payment-option ${selectedPaymentMethod === index ? 'selected' : ''}`}
+                        onClick={() => setSelectedPaymentMethod(index)}
+                      >
+                        <div className="radio-container">
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            checked={selectedPaymentMethod === index}
+                            onChange={() => {}}
+                          />
+                          <span className="custom-radio"></span>
+                          {selectedPaymentMethod === index && <span className="checkmark">✓</span>}
+                        </div>
+                        
+                        {method.image ? (
+                          <img
+                            src={method.image}
+                            alt={method.name}
+                            className="payment-image"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/60x40?text=' + method.name.substring(0, 2).toUpperCase();
+                            }}
+                          />
+                        ) : (
+                          <div className="payment-image">
+                            {method.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        
+                        <div className="payment-info">
+                          <div className="payment-name">{method.name}</div>
+                          <div className="payment-type">
+                            {method.name.toLowerCase().includes('bank') ? 'Bank Transfer' : 
+                             method.name.toLowerCase().includes('paypal') ? 'PayPal' : 
+                             method.name.toLowerCase().includes('cash') ? 'Cash' : 'Payment'}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              
+                <div className="payment-method">
+                  <h3>Summary</h3>
+                  <div className="no-payment-methods">
                     <span>{format(bookingDate, 'EEEE, MMMM d, yyyy')}</span>
                   </div>
                   <div className="detail-row">
@@ -175,6 +461,10 @@ export const BookingSummary = () => {
                   <div className="detail-row">
                     <span className="label">Total Duration:</span>
                     <span>{selectedTimes.length} hour{selectedTimes.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="detail">
+                    <span>Price per hour:</span>
+                    <span>{currencySymbol} {courtData?.price ? parseFloat(courtData.price).toFixed(2) : '0.00'}/hour</span>
                   </div>
                   <div className="detail-row total">
                     <span>Total Amount:</span>
@@ -215,6 +505,44 @@ export const BookingSummary = () => {
               </div>
               
               <div className="form-group">
+                <label>Payment Proof *</label>
+                <div className="file-upload-container">
+                  <input
+                    type="file"
+                    id="payment-proof-input"
+                    accept="image/*"
+                    onChange={handlePaymentProofChange}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    className={`upload-button ${paymentProofPreview ? 'has-preview' : ''}`}
+                    onClick={() => document.getElementById('payment-proof-input').click()}
+                  >
+                    {paymentProofPreview ? (
+                      <div className="preview-container">
+                        <img src={paymentProofPreview} alt="Payment proof preview" className="preview-image" />
+                        <span className="change-text">Change Image</span>
+                      </div>
+                    ) : (
+                      <div className="upload-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="17 8 12 3 7 8"></polyline>
+                          <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Upload Payment Proof</span>
+                        <small>Click to upload image of your payment receipt</small>
+                      </div>
+                    )}
+                  </button>
+                  {!isPaymentUploaded && (
+                    <p className="upload-hint">Please upload proof of payment to complete your booking</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="form-group">
                 <label htmlFor="phone">Phone Number *</label>
                 <input
                   type="tel"
@@ -239,39 +567,6 @@ export const BookingSummary = () => {
                 />
               </div>
               
-              <div className="payment-method">
-                <h3>Payment Method</h3>
-                <div className="payment-options">
-                  <label className="payment-option">
-                    <input type="radio" name="payment" defaultChecked />
-                    <span>Credit/Debit Card</span>
-                  </label>
-                  <label className="payment-option">
-                    <input type="radio" name="payment" />
-                    <span>PayPal</span>
-                  </label>
-                </div>
-                
-                <div className="card-details">
-                  <div className="form-group">
-                    <label>Card Number</label>
-                    <input type="text" placeholder="1234 5678 9012 3456" />
-                  </div>
-                  
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Expiry Date</label>
-                      <input type="text" placeholder="MM/YY" />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>CVV</label>
-                      <input type="text" placeholder="123" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               <div className="terms">
                 <label className="checkbox-container">
                   <input type="checkbox" required />
@@ -281,7 +576,7 @@ export const BookingSummary = () => {
               </div>
               
               <button type="submit" className="submit-button" disabled={isLoading}>
-                {isLoading ? 'Processing...' : `Pay Php ${court.price}.00 & Confirm Booking`}
+                {isLoading ? 'Processing...' : `Pay Php ${totalPrice} & Confirm Booking`}
               </button>
               
               <p className="secure-payment">

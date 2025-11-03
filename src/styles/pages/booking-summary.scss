@@ -181,48 +181,226 @@
   }
 
   .payment-method {
-    margin: $spacing-xl 0;
+    margin-top: $spacing-xl;
+    background: $white;
+    border-radius: $border-radius-lg;
     padding: $spacing-lg;
-    background: $light-gray;
-    border-radius: $border-radius-md;
-
-    h3 {
-      font-size: $font-size-md;
-      margin-bottom: $spacing-md;
-      color: $black;
+    box-shadow: $shadow-sm;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    
+    &:hover {
+      box-shadow: $shadow-md;
+      transform: translateY(-2px);
     }
-
-    .payment-options {
+    
+    h3 {
+      font-size: $font-size-xl;
+      margin-bottom: $spacing-xs;
+      color: $black;
+      font-weight: 600;
       display: flex;
-      gap: $spacing-md;
+      align-items: center;
+      gap: $spacing-xs;
+      
+      &::before {
+        content: '💳';
+        font-size: 1.2em;
+      }
+    }
+    
+    p {
+      color: $dark-gray;
       margin-bottom: $spacing-lg;
-
+      font-size: $font-size-sm;
+    }
+    
+    .payment-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: $spacing-md;
+      margin-top: $spacing-md;
+      
+      @media (max-width: $breakpoint-sm) {
+        grid-template-columns: 1fr;
+      }
+      
       .payment-option {
         display: flex;
         align-items: center;
-        gap: $spacing-xs;
+        padding: $spacing-md;
+        border: 2px solid $border-color;
+        border-radius: $border-radius-lg;
         cursor: pointer;
-        padding: $spacing-sm $spacing-md;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         background: $white;
-        border-radius: $border-radius-sm;
-        border: 1px solid darken($light-gray, 10%);
-        transition: all 0.2s ease;
-
+        position: relative;
+        overflow: hidden;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: $primary-color;
+          transform: scaleX(0);
+          transition: transform 0.3s ease;
+        }
+        
         &:hover {
           border-color: $primary-color;
+          transform: translateY(-2px);
+          box-shadow: $shadow-sm;
+          
+          &::before {
+            transform: scaleX(1);
+          }
+          
+          .payment-image {
+            transform: scale(1.05);
+          }
         }
-
+        
+        &.selected {
+          border-color: $primary-color;
+          background-color: rgba($primary-color, 0.05);
+          
+          &::before {
+            transform: scaleX(1);
+          }
+          
+          .checkmark {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .radio-container {
+          position: relative;
+          margin-right: $spacing-md;
+          flex-shrink: 0;
+        }
+        
         input[type="radio"] {
-          margin: 0;
+          position: absolute;
+          opacity: 0;
+          width: 0;
+          height: 0;
+          
+          &:checked + .custom-radio {
+            border-color: $primary-color;
+            
+            &::after {
+              transform: scale(1);
+            }
+          }
+        }
+        
+        .custom-radio {
+          display: inline-block;
+          width: 20px;
+          height: 20px;
+          border: 2px solid $border-color;
+          border-radius: 50%;
+          position: relative;
+          transition: all 0.2s ease;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 10px;
+            height: 10px;
+            background: $primary-color;
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 0.2s ease;
+          }
+        }
+        
+        .payment-image {
+          width: 60px;
+          height: 40px;
+          margin-right: $spacing-md;
+          object-fit: contain;
+          transition: transform 0.3s ease;
+          border-radius: $border-radius-sm;
+          background: white;
+          padding: $spacing-xs;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+          
+          @media (max-width: $breakpoint-sm) {
+            width: 50px;
+            height: 35px;
+          }
+        }
+        
+        .payment-info {
+          flex: 1;
+          
+          .payment-name {
+            font-weight: 600;
+            color: $black;
+            margin-bottom: $spacing-xxs;
+            font-size: $font-size-md;
+          }
+          
+          .payment-type {
+            font-size: $font-size-xs;
+            color: $dark-gray;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+        }
+        
+        .checkmark {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
+          background: $primary-color;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 12px;
+          opacity: 0;
+          transform: scale(0.8);
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       }
     }
-
-    .card-details {
-      background: $white;
-      padding: $spacing-md;
-      border-radius: $border-radius-sm;
-      margin-top: $spacing-md;
+    
+    .no-payment-methods {
+      text-align: center;
+      padding: $spacing-lg;
+      background: rgba($light-gray, 0.5);
+      border-radius: $border-radius-md;
+      border: 1px dashed $border-color;
+      
+      p {
+        margin-bottom: $spacing-md;
+      }
+      
+      .contact-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-sm;
+        margin-top: $spacing-md;
+        color: $primary-color;
+        font-weight: 500;
+        
+        &::before {
+          content: '📞';
+          font-size: 1.2em;
+        }
+      }
     }
   }
 
