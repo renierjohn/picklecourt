@@ -69,7 +69,13 @@ export const Login = () => {
               placeholder="Enter your password"
             />
           </div>
-          <button type="submit" className="btn-primary">Login</button>
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            disabled={isLoading}
+          >
+            {isLoading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
         <div className="auth-footer">
           Don't have an account? <Link to="/register">Register here</Link>

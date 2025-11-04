@@ -165,10 +165,43 @@ export const Courts = () => {
     const [hour] = time24.split(':').map(Number);
     return hour === 12; // 12:00 to 12:59 is lunch break
   };
+  
+  // Check if a time slot is marked as unavailable in court settings
+  const isTimeUnavailable = (time24) => {
+    if (!selectedCourt) return false;
+    const court = courts.find(c => c.id === selectedCourt);
+    if (!court) return false;
+    
+    // Check general unavailable hours
+    if (court.unavailableHours?.includes(time24)) {
+      return true;
+    }
+    
+    // Check day-specific unavailable hours
+    const dayOfWeek = format(selectedDate, 'EEEE').toLowerCase();
+    if (court.daySpecificUnavailableHours?.[dayOfWeek]?.includes(time24)) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Check if a time slot is booked for the selected court
   const isTimeSlotBooked = (date, time24) => {
     const dateStr = format(date, 'yyyy-MM-dd');
+    const court = courts.find(c => c.id === selectedCourt);
+    if (!court) return false;
+    
+    // Check if this time is in the court's unavailableHours
+    if (court.unavailableHours?.includes(time24)) {
+      return true;
+    }
+    
+    // Check day-specific unavailable hours
+    const dayOfWeek = format(date, 'EEEE').toLowerCase();
+    if (court.daySpecificUnavailableHours?.[dayOfWeek]?.includes(time24)) {
+      return true;
+    }
     
     // Check if this time is in any booking's times array for the selected court and date
     return bookings.some(booking => {
@@ -178,6 +211,43 @@ export const Courts = () => {
       // Check if the time24 is in the booking's times array
       return booking.times.includes(time24);
     });
+  };
+
+  // Check if a day is fully booked or marked as unavailable
+  const isDayFullyBooked = (date) => {
+    if (!selectedCourt) return false;
+    
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const dayOfWeek = format(date, 'EEEE').toLowerCase(); // e.g., 'monday', 'tuesday', etc.
+    const court = courts.find(c => c.id === selectedCourt);
+    
+    if (!court) return false;
+    
+    // Check if the day is marked as unavailable in court settings
+    if (Array.isArray(court.unavailableDays) && court.unavailableDays.includes(dayOfWeek)) {
+      return true;
+    }
+    
+    // Check for specific unavailable dates if they exist
+    if (Array.isArray(court.unavailableDates) && court.unavailableDates.includes(dateStr)) {
+      return true;
+    }
+    
+    // Get all bookings for this court and date
+    const dayBookings = bookings.filter(
+      booking => booking.courtId === selectedCourt && booking.date === dateStr
+    );
+    
+    // If no bookings, the day is not fully booked
+    if (dayBookings.length === 0) return false;
+    
+    // Flatten all booked times for the day
+    const allBookedTimes = dayBookings.flatMap(booking => booking.times);
+    
+    // Check if all available time slots are booked
+    return timeSlots24.every(time24 => 
+      allBookedTimes.includes(time24) || isLunchBreak(time24)
+    );
   };
   // Get available slots for the selected court at a specific time
   const getAvailableSlots = (date, time24) => { 
@@ -259,14 +329,20 @@ export const Courts = () => {
               const dayOfWeek = format(day, 'EEE');
               const dayOfMonth = format(day, 'd');
               const isSelected = isSameDay(day, selectedDate);
+              const isUnavailable = isDayFullyBooked(day);
+              const dayName = format(day, 'EEEE').toLowerCase();
+              const court = courts.find(c => c.id === selectedCourt);
+              const isDayUnavailable = court?.unavailableDays?.includes(dayName);
               
               return (
                 <button
                   key={day.toString()}
                   className={`date-button ${isSelected ? 'selected' : ''} ${
                     isWeekend(day) ? 'weekend' : ''
-                  }`}
-                  onClick={() => setSelectedDate(day)}
+                  } ${isUnavailable ? 'unavailable' : ''} ${isDayUnavailable ? 'unavailable' : ''}`}
+                  onClick={() => !isUnavailable && !isDayUnavailable && setSelectedDate(day)}
+                  disabled={isUnavailable || isDayUnavailable}
+                  title={isDayUnavailable ? 'This day is not available for booking' : isUnavailable ? 'This day is fully booked' : ''}
                 >
                   <span className="day">{dayOfWeek}</span>
                   <span className={`date ${isToday(day) ? 'today' : ''}`}>
@@ -281,21 +357,34 @@ export const Courts = () => {
             <div className="time-slots-grid">
               {timeSlots.map(({ display, value: time24 }) => {
                 const isLunch = isLunchBreak(time24);
-                const isBooked = isTimeSlotBooked(selectedDate, time24);
+                const isUnavailable = isTimeUnavailable(time24);
+                const isBooked = isTimeSlotBooked(selectedDate, time24) && !isUnavailable; // Don't show as booked if it's actually marked as unavailable
                 const isSelected = selectedTimes.includes(time24);
+                const court = courts.find(c => c.id === selectedCourt);
                 
                 return (
                   <button
                     key={time24}
                     className={`time-slot ${isSelected ? 'selected' : ''} ${
                       isBooked ? 'booked' : ''
-                    } ${isLunch ? 'lunch-break' : ''}`}
-                    onClick={() => !isBooked && toggleTimeSlot(time24)}
-                    disabled={isBooked}
-                    title={isLunch ? 'Lunch Break (12:00 PM - 1:00 PM)' : isBooked ? 'This time slot is already booked' : ''}
+                    } ${isLunch ? 'lunch-break' : ''} ${isUnavailable ? 'unavailable' : ''}`}
+                    onClick={() => !isBooked && !isUnavailable && toggleTimeSlot(time24)}
+                    disabled={isBooked || isUnavailable}
+                    title={
+                      isLunch ? 'Lunch Break (12:00 PM - 1:00 PM)' : 
+                      isUnavailable ? 'This time slot is not available for booking' :
+                      isBooked ? 'This time slot is already booked' : ''
+                    }
                   >
                     {isLunch ? 'Lunch Break' : display}
-                    {isBooked && !isLunch && <span className="booked-badge">Booked</span>}
+                    {isBooked && !isLunch && !isUnavailable && <span className="booked-badge">Booked</span>}
+                    {isUnavailable && !isLunch && (
+                      <span className="unavailable-badge">
+                        {court?.daySpecificUnavailableHours?.[format(selectedDate, 'EEEE').toLowerCase()]?.includes(time24) 
+                          ? 'Unavailable (Open Play)' 
+                          : 'Unavailable'}
+                      </span>
+                    )}
                     {isLunch && <span className="lunch-badge">Closed</span>}
                   </button>
                 );

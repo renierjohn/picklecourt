@@ -103,37 +103,68 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: $spacing-xs;
+        margin-bottom: $spacing-sm;
+        gap: $spacing-sm;
+        
+        > div {
+          flex: 1;
+          min-width: 0; // Prevents flex item from overflowing
+        }
         
         h3 {
-          margin: 0;
+          margin: 0 0 $spacing-xxs 0;
           color: $dark;
           font-size: 1.25rem;
           font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .status {
+          background: $success-color;
+          color: white;
+          font-size: 0.7rem;
+          padding: 0.2rem $spacing-xs;
+          border-radius: 0.25rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          white-space: nowrap;
         }
         
         .distance {
           background: $primary-color;
           color: white;
-          font-size: 0.75rem;
-          padding: 0.25rem $spacing-sm;
+          font-size: 0.7rem;
+          padding: 0.2rem $spacing-xs;
           border-radius: 1rem;
           font-weight: 600;
+          margin-left: $spacing-xs;
         }
       }
       
       .address {
-        color: $gray-600;
-        margin: $spacing-xs 0 $spacing-md;
+        color: $gray-700;
+        margin: 0;
         display: flex;
         align-items: center;
         font-size: 0.9rem;
-        line-height: 1.5;
+        line-height: 1.4;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         
         .icon {
           margin-right: $spacing-xs;
           color: $primary-color;
-          font-size: 1rem;
+          font-size: 0.9rem;
+          flex-shrink: 0;
+        }
+        
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
       

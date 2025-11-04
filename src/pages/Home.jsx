@@ -56,8 +56,7 @@ export const Home = () => {
       {/* Locations Section */}
       <section className="locations-section">
         <div className="container">
-          <h2 className="section-title">Available Courts</h2>
-          <p className="section-subtitle">Book a court with our verified hosts</p>
+          <h2 className="section-title">Book a court with our verified hosts</h2>
           
           <div className="locations-grid">
             {users.length > 0 ? (
@@ -71,14 +70,17 @@ export const Home = () => {
                   </div>
                   <div className="location-details">
                     <div className="location-header">
-                      <h3>{user.name || 'Pickleball Court'}</h3>
+                      <div>
+                        <h3>{user.name || 'Pickleball Court'}</h3>
+                        {user.location && (
+                          <div className="address">
+                            <FaMapMarkerAlt className="icon" /> 
+                            <span>{user.location}</span>
+                          </div>
+                        )}
+                      </div>
                       <span className="status">Available</span>
                     </div>
-                    {user.address && (
-                      <p className="address">
-                        <FaMapMarkerAlt className="icon" /> {user.address}
-                      </p>
-                    )}
                     <div className="location-features">
                       {user.phoneNumber && (
                         <span className="feature">

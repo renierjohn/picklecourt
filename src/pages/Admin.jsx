@@ -29,6 +29,16 @@ export const Admin = () => {
     status: 'active',
     unavailableDays: [],
     unavailableHours: [''],
+    daySpecificUnavailableHours: {
+      monday: [],
+      tuesday: [],
+      wednesday: [],
+      thursday: [],
+      friday: [],
+      saturday: [],
+      sunday: []
+    },
+    expandedDay: null,
     image: null,
     imagePreview: null,
     userId: ''
@@ -55,6 +65,7 @@ export const Admin = () => {
   const [newPaymentMethod, setNewPaymentMethod] = useState({ name: '', image: null });
   const [paymentImages, setPaymentImages] = useState([]);
   const [paymentImagePreviews, setPaymentImagePreviews] = useState([]);
+  const [zoomedPaymentImage, setZoomedPaymentImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -91,32 +102,109 @@ export const Admin = () => {
     });
   };
 
-  const handleTimeChange = (index, value) => {
+  const handleTimeChange = (index, value, day = null) => {
     setCourtForm(prev => {
-      const currentHours = Array.isArray(prev.unavailableHours) ? [...prev.unavailableHours] : [];
-      currentHours[index] = value;
+      if (day) {
+        // Update day-specific time slot
+        const updatedDayHours = [...(prev.daySpecificUnavailableHours[day] || [])];
+        updatedDayHours[index] = value;
+        return {
+          ...prev,
+          daySpecificUnavailableHours: {
+            ...prev.daySpecificUnavailableHours,
+            [day]: updatedDayHours
+          }
+        };
+      } else {
+        // Update all-week time slot
+        const currentHours = Array.isArray(prev.unavailableHours) ? [...prev.unavailableHours] : [];
+        currentHours[index] = value;
+        return {
+          ...prev,
+          unavailableHours: currentHours
+        };
+      }
+    });
+  };
+
+  const addTimeSlot = (day = null) => {
+    setCourtForm(prev => {
+      if (day) {
+        // Add day-specific time slot
+        const currentHours = [...(prev.daySpecificUnavailableHours[day] || [])];
+        return {
+          ...prev,
+          daySpecificUnavailableHours: {
+            ...prev.daySpecificUnavailableHours,
+            [day]: [...currentHours, '']
+          }
+        };
+      } else {
+        // Add all-week time slot
+        const currentHours = Array.isArray(prev.unavailableHours) ? [...prev.unavailableHours] : [];
+        return {
+          ...prev,
+          unavailableHours: [...currentHours, '']
+        };
+      }
+    });
+  };
+
+  const removeTimeSlot = (index, day = null) => {
+    setCourtForm(prev => {
+      if (day) {
+        // Remove day-specific time slot
+        const updatedDayHours = [...(prev.daySpecificUnavailableHours[day] || [])];
+        updatedDayHours.splice(index, 1);
+        return {
+          ...prev,
+          daySpecificUnavailableHours: {
+            ...prev.daySpecificUnavailableHours,
+            [day]: updatedDayHours
+          }
+        };
+      } else {
+        // Remove all-week time slot
+        return {
+          ...prev,
+          unavailableHours: prev.unavailableHours.filter((_, i) => i !== index)
+        };
+      }
+    });
+  };
+
+  const toggleDaySpecificView = (day) => {
+    setCourtForm(prev => {
+      // If clicking the same day that's already expanded, close it
+      if (prev.expandedDay === day) {
+        return {
+          ...prev,
+          expandedDay: null
+        };
+      }
+      
+      // If the day has no time slots, initialize with an empty array
+      if (!prev.daySpecificUnavailableHours[day]?.length) {
+        return {
+          ...prev,
+          daySpecificUnavailableHours: {
+            ...prev.daySpecificUnavailableHours,
+            [day]: []
+          },
+          expandedDay: day
+        };
+      }
+      
+      // If the day has time slots, just toggle the expanded view
       return {
         ...prev,
-        unavailableHours: currentHours
+        expandedDay: day
       };
     });
   };
 
-  const addTimeSlot = () => {
-    setCourtForm(prev => {
-      const currentHours = Array.isArray(prev.unavailableHours) ? [...prev.unavailableHours] : [];
-      return {
-        ...prev,
-        unavailableHours: [...currentHours, '']
-      };
-    });
-  };
-
-  const removeTimeSlot = (index) => {
-    setCourtForm(prev => ({
-      ...prev,
-      unavailableHours: prev.unavailableHours.filter((_, i) => i !== index)
-    }));
+  const getDayName = (day) => {
+    return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
   const handleImageChange = (e) => {
@@ -392,6 +480,9 @@ export const Admin = () => {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login');
+    } else if (user) {
+      // Fetch user profile when component mounts and user is available
+      fetchUserProfile(user.uid);
     }
   }, [user, loading, navigate]);
 
@@ -412,6 +503,12 @@ export const Admin = () => {
         imageUrl = await getDownloadURL(storageRef);
       }
       
+      // Clean up day-specific unavailable hours (remove empty strings)
+      const cleanedDaySpecificHours = {};
+      Object.entries(courtForm.daySpecificUnavailableHours || {}).forEach(([day, hours]) => {
+        cleanedDaySpecificHours[day] = hours.filter(Boolean);
+      });
+
       const courtData = {
         name: courtForm.name.trim(),
         location: courtForm.location.trim(),
@@ -419,6 +516,7 @@ export const Admin = () => {
         status: courtForm.status || 'active',
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
+        daySpecificUnavailableHours: cleanedDaySpecificHours,
         image: imageUrl,
         userId: userId,
         updatedAt: timestamp.toISOString()
@@ -461,9 +559,19 @@ export const Admin = () => {
       status: court.status || 'active',
       unavailableDays: court.unavailableDays || [],
       unavailableHours: court.unavailableHours?.length ? [...court.unavailableHours, ''] : [''],
+      daySpecificUnavailableHours: court.daySpecificUnavailableHours || {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: []
+      },
       image: court.image || null,
       imagePreview: court.image || null, // Show the existing image URL as preview
-      userId: court.userId || ''
+      userId: court.userId || '',
+      expandedDay: null
     });
     setShowCourtForm(true);
   };
@@ -477,6 +585,16 @@ export const Admin = () => {
       status: 'active',
       unavailableDays: [],
       unavailableHours: [''],
+      daySpecificUnavailableHours: {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: []
+      },
+      expandedDay: null,
       image: null,
       imagePreview: null,
       userId: ''
@@ -757,7 +875,13 @@ export const Admin = () => {
                         {userProfile.paymentMethods?.map((method, index) => (
                           <div key={index} className="payment-method">
                             <div className="payment-method-content">
-                              <div className="payment-method-image">
+                              <div 
+                                className="payment-method-image"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setZoomedPaymentImage(method.image);
+                                }}
+                              >
                                 <img src={method.image} alt={method.name} />
                               </div>
                               <div className="payment-method-info">
@@ -840,7 +964,12 @@ export const Admin = () => {
                           <div key={index} className="payment-method-badge">
                             <div className="payment-method-content">
                               {method.image && (
-                                <div className="payment-method-image">
+                                <div className="payment-method-image"
+                                 onClick={(e) => {
+                                  e.stopPropagation();
+                                  setZoomedPaymentImage(method.image);
+                                }}
+                                >
                                   <img src={method.image} alt={method.name} />
                                 </div>
                               )}
@@ -984,33 +1113,125 @@ export const Admin = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Unavailable Time Slots</label>
-                {courtForm.unavailableHours?.map((time, index) => (
-                  <div key={index} className="time-slot-input">
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(e) => handleTimeChange(index, e.target.value)}
-                      className="time-input"
-                      placeholder="HH:MM - HH:MM"
-                    />
-                    <button 
-                      type="button" 
-                      className="remove-time"
-                      onClick={() => removeTimeSlot(index)}
-                      disabled={courtForm.unavailableHours.length <= 1}
+                <label className="form-label">Unavailable Time Slots (All Week)</label>
+                <div className="time-slots-container">
+                  {courtForm.unavailableHours?.map((time, index) => (
+                    <div key={`all-${index}`} className="time-slot-input">
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) => handleTimeChange(index, e.target.value)}
+                        className="time-input"
+                        placeholder="HH:MM"
+                      />
+                      <button 
+                        type="button" 
+                        className="remove-time"
+                        onClick={() => removeTimeSlot(index)}
+                        disabled={courtForm.unavailableHours.length <= 1}
+                        title="Remove time slot"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button 
+                    type="button"
+                    className="add-time"
+                    onClick={() => addTimeSlot()}
+                  >
+                    + Add Time Slot (All Week)
+                  </button>
+                </div>
+              </div>
+
+                {/* Day-Specific Unavailable Time Slots */}
+              <div className="form-group">
+                <label className="form-label">Day-Specific Unavailable Time Slots</label>
+                <div className="day-selector">
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={`day-option ${courtForm.daySpecificUnavailableHours[day]?.length > 0 ? 'selected' : ''}`}
+                      onClick={(e) => {
+                        // If command/ctrl key is pressed, clear the day's time slots
+                        if (e.metaKey || e.ctrlKey) {
+                          e.preventDefault();
+                          setCourtForm(prev => ({
+                            ...prev,
+                            daySpecificUnavailableHours: {
+                              ...prev.daySpecificUnavailableHours,
+                              [day]: []
+                            }
+                          }));
+                        } else {
+                          // Normal click - toggle the time slots panel
+                          toggleDaySpecificView(day);
+                        }
+                      }}
                     >
-                      ×
+                      {day.charAt(0).toUpperCase() + day.slice(1, 3)}&nbsp;
+                      {courtForm.daySpecificUnavailableHours[day]?.length > 0 && (
+                        <span className="time-count">({courtForm.daySpecificUnavailableHours[day].length})</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {courtForm.expandedDay && (
+                  <div className="time-slots-panel">
+                    <div className="panel-header">
+                      <h4>{getDayName(courtForm.expandedDay)} Unavailable Times</h4>
+                      <button
+                        type="button"
+                        className="close-panel"
+                        onClick={() => setCourtForm(prev => ({ ...prev, expandedDay: null }))}
+                        aria-label="Close panel"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                    
+                    <div className="time-slots-list">
+                      {(courtForm.daySpecificUnavailableHours[courtForm.expandedDay] || []).length > 0 ? (
+                        (courtForm.daySpecificUnavailableHours[courtForm.expandedDay] || []).map((time, index) => (
+                          <div key={index} className="time-slot-item">
+                            <div className="time-input-wrapper">
+                              <FaClock className="time-icon" />
+                              <input
+                                type="time"
+                                value={time}
+                                onChange={(e) => handleTimeChange(index, e.target.value, courtForm.expandedDay)}
+                                className="time-input"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="remove-time"
+                              onClick={() => removeTimeSlot(index, courtForm.expandedDay)}
+                              aria-label="Remove time slot"
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-times-message">
+                          No time slots added for {getDayName(courtForm.expandedDay)}. Click below to add one.
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button
+                      type="button"
+                      className="add-time-btn"
+                      onClick={() => addTimeSlot(courtForm.expandedDay)}
+                    >
+                      <span>+</span> Add Time Slot
                     </button>
                   </div>
-                ))}
-                <button 
-                  type="button" 
-                  className="add-time"
-                  onClick={addTimeSlot}
-                >
-                  + Add Time Slot
-                </button>
+                )}
               </div>
 
               <div className="form-group">
@@ -1309,6 +1530,24 @@ export const Admin = () => {
         </div>
       )}
 
+      {/* Zoomed Payment Image Modal */}
+      {zoomedPaymentImage && (
+        <div className="modal-overlay" onClick={() => setZoomedPaymentImage(null)}>
+          <div className="zoomed-image-container" onClick={e => e.stopPropagation()}>
+            <button 
+              className="close-zoom" 
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomedPaymentImage(null);
+              }}
+            >
+              ×
+            </button>
+            <img src={zoomedPaymentImage} alt="Zoomed Payment Method" className="zoomed-image" />
+          </div>
+        </div>
+      )}
+      
       <ConfirmationModal
         isOpen={modalConfig.isOpen}
         title={modalConfig.title}

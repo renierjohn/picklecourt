@@ -48,6 +48,36 @@
           justify-content: center;
           background: $light-bg;
           border-bottom: 1px solid $border-color;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+          overflow: hidden;
+          
+          &::after {
+            content: '🔍 Click to zoom';
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 2px 0;
+            opacity: 0;
+            transition: all 0.2s ease;
+          }
+          
+          &:hover {
+            img {
+              transform: scale(1.05);
+            }
+            
+            &::after {
+              bottom: 0;
+              opacity: 1;
+            }
+          }
           
           img {
             max-width: 100%;
@@ -55,6 +85,7 @@
             width: auto;
             object-fit: contain;
             border-radius: 4px;
+            transition: transform 0.3s ease;
           }
         }
         
@@ -370,7 +401,7 @@
           flex-grow: 1;
           
           h3 {
-            margin: 0 0 $spacing-xs;
+            margin: 0 0 $spacing-xs 0;
             font-size: 1.5rem;
             color: $text-color;
           }
@@ -641,6 +672,7 @@
         margin-bottom: $spacing-md;
         
         .day-option {
+          position: relative;
           flex: 1 0 calc(14.28% - #{$spacing-xs});
           padding: $spacing-xs;
           border: 1px solid $border-color;
@@ -650,11 +682,175 @@
           text-align: center;
           transition: all 0.2s;
           font-size: 0.9rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 36px;
           
           &:hover, &.selected {
             background: $primary-color;
             color: white;
             border-color: $primary-color;
+          }
+          
+          .time-count {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: $danger-color;
+            color: white;
+            border-radius: 10px;
+            font-size: 10px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+          }
+        }
+      }
+      
+      .time-slots-panel {
+        background: $white;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+        margin-top: $spacing-md;
+        overflow: hidden;
+        box-shadow: $shadow-sm;
+
+        .panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: $spacing-sm $spacing-md;
+          background: $light-bg;
+          border-bottom: 1px solid $border-color;
+
+          h4 {
+            margin: 0;
+            font-size: $font-size-md;
+            font-weight: 600;
+            color: $text-color;
+          }
+
+          .close-panel {
+            background: none;
+            border: none;
+            color: $text-muted;
+            font-size: $font-size-lg;
+            cursor: pointer;
+            padding: $spacing-xs;
+            line-height: 1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: rgba(0, 0, 0, 0.05);
+              color: $text-color;
+            }
+          }
+        }
+
+        .time-slots-list {
+          padding: $spacing-md;
+          max-height: 300px;
+          overflow-y: auto;
+
+          .time-slot-item {
+            display: flex;
+            align-items: center;
+            gap: $spacing-sm;
+            margin-bottom: $spacing-sm;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+
+            .time-input-wrapper {
+              flex: 1;
+              position: relative;
+              display: flex;
+              align-items: center;
+
+              .time-icon {
+                position: absolute;
+                left: 12px;
+                color: $text-muted;
+                font-size: $font-size-md;
+                pointer-events: none;
+              }
+
+              .time-input {
+                width: 100%;
+                padding: $spacing-xs $spacing-md $spacing-xs 40px;
+                border: 1px solid $border-color;
+                border-radius: $border-radius-sm;
+                font-size: $font-size-sm;
+                transition: border-color 0.2s ease;
+
+                &:focus {
+                  outline: none;
+                  border-color: $primary-color;
+                  box-shadow: 0 0 0 2px rgba($primary-color, 0.1);
+                }
+              }
+            }
+
+            .remove-time {
+              background: none;
+              border: none;
+              color: $danger-color;
+              font-size: $font-size-lg;
+              cursor: pointer;
+              padding: $spacing-xs;
+              line-height: 1;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: rgba($danger-color, 0.1);
+              }
+            }
+          }
+
+          .no-times-message {
+            text-align: center;
+            color: $text-muted;
+            padding: $spacing-md 0;
+            font-size: $font-size-sm;
+          }
+        }
+
+        .add-time-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: $spacing-xs;
+          width: 100%;
+          padding: $spacing-sm;
+          background: $light-bg;
+          border: 1px dashed $border-color;
+          border-radius: 0 0 $border-radius-md $border-radius-md;
+          color: $primary-color;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background: lighten($primary-color, 40%);
+            border-color: $primary-color;
+          }
+
+          span {
+            font-size: 1.2em;
+            line-height: 1;
           }
         }
       }
