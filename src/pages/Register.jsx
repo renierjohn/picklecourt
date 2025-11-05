@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import '../styles/pages/auth.scss';
 
@@ -61,6 +63,8 @@ export const Register = () => {
     }
   }, [user, navigate, location]);
 
+  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.REGISTER);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -75,19 +79,26 @@ export const Register = () => {
       return;
     }
 
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
+
     setIsLoading(true);
     
     try {
-      const result = await register(name, email, password);
+      const result = await register(name, email, password, recaptchaToken);
       if (result.success) {
         const from = location.state?.from?.pathname || '/';
         navigate(from, { replace: true });
       } else {
         setError(result.error || 'Failed to register');
+        resetRecaptcha();
       }
     } catch (err) {
       setError('An error occurred during registration');
       console.error('Registration error:', err);
+      resetRecaptcha();
     } finally {
       setIsLoading(false);
     }
@@ -169,6 +180,9 @@ export const Register = () => {
               minLength="6"
               placeholder="Confirm your password"
             />
+          </div>
+          <div className="form-group">
+            <RecaptchaComponent />
           </div>
           <button 
             type="submit" 

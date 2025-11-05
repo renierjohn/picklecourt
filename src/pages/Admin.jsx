@@ -304,7 +304,8 @@ export const Admin = () => {
         title: 'Success',
         message: 'Payment method added successfully. Don\'t forget to save your profile to apply changes.',
         confirmText: 'OK',
-        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+        onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
       });
     } else {
       setModalConfig({
@@ -691,8 +692,16 @@ export const Admin = () => {
         isOpen: true,
         title: 'Success',
         message: 'Booking has been confirmed successfully!',
-        confirmText: 'OK',
-        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+        confirmText: 'Close',
+        onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+        onCancel: () => {
+          setModalConfig(prev => ({ ...prev, isOpen: false }))
+          const bookingRef = doc(db, 'bookings', bookingId);
+          updateDoc(bookingRef, {
+            status: 'pending',
+            updatedAt: new Date().toISOString()
+          });
+        }
       });
       
       // Close the booking details modal if open

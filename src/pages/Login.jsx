@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
 import '../styles/pages/auth.scss';
 
 export const Login = () => {
@@ -20,22 +22,32 @@ export const Login = () => {
     }
   }, [user, navigate, location]);
 
+  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.LOGIN);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, recaptchaToken);
       if (result.success) {
         const from = location.state?.from?.pathname || '/';
         navigate(from, { replace: true });
       } else {
         setError(result.error || 'Failed to login');
+        resetRecaptcha();
       }
     } catch (err) {
       setError('An error occurred during login');
       console.error('Login error:', err);
+      resetRecaptcha();
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +80,9 @@ export const Login = () => {
               required
               placeholder="Enter your password"
             />
+          </div>
+          <div className="form-group">
+            <RecaptchaComponent />
           </div>
           <button 
             type="submit" 

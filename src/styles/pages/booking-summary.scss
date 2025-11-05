@@ -31,6 +31,9 @@
     background: $white;
     border-radius: $border-radius-lg;
     padding: $spacing-xl;
+  }
+
+  .booking-form-container {
     box-shadow: $shadow-sm;
   }
 
@@ -53,7 +56,6 @@
     .court-image {
       flex: 0 0 200px;
       height: 150px;
-      border-radius: $border-radius-md;
       overflow: hidden;
       box-shadow: $shadow-sm;
 
@@ -74,6 +76,7 @@
 
       h3 {
         font-size: $font-size-lg;
+        margin-top: $spacing-md;
         margin-bottom: $spacing-xs;
         color: $black;
       }
@@ -185,11 +188,9 @@
     background: $white;
     border-radius: $border-radius-lg;
     padding: $spacing-lg;
-    box-shadow: $shadow-sm;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     
     &:hover {
-      box-shadow: $shadow-md;
       transform: translateY(-2px);
     }
     
@@ -401,6 +402,42 @@
           font-size: 1.2em;
         }
       }
+    }
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: $spacing-md $spacing-lg;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    border-radius: $border-radius-md;
+    font-size: $font-size-md;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: $spacing-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+
+    &:hover {
+      background-color: darken($primary-color, 10%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba($primary-color, 0.2);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      background-color: $gray-400;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.8;
     }
   }
 

@@ -1288,6 +1288,10 @@
     font-size: $font-size-sm;
 
     th, td {
+      .btn-group {
+        display: flex;
+        
+      }
       .btn {
         margin-left: $spacing-xs;
       }

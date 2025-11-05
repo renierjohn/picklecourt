@@ -82,8 +82,8 @@ export const Header = () => {
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="btn btn-login" onClick={() => setIsMenuOpen(false)}>Login</Link>
-                  <Link to="/register" className="btn btn-primary" onClick={() => setIsMenuOpen(false)}>Register</Link>
+                  <Link to="/login" className="btn btn-login" onClick={() => setIsMenuOpen(false)}>Login as Host</Link>
+                  <Link to="/register" className="btn btn-primary" onClick={() => setIsMenuOpen(false)}>Become Host</Link>
                 </>
               )}
             </div>

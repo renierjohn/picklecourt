@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { format, parseISO, addHours } from 'date-fns';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
+import { format, parseISO } from 'date-fns';
 import { doc, getDoc, getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp } from 'firebase/app';
@@ -26,196 +28,95 @@ export const BookingSummary = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [userData, setUserData] = useState(null);
   const [courtData, setCourtData] = useState(null);
-  const [courtOwner, setCourtOwner] = useState(null);
+  const [courtOwner, setCourtOwner] = useState({ paymentMethods: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(0);
   const [paymentProof, setPaymentProof] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState(null);
   const [isPaymentUploaded, setIsPaymentUploaded] = useState(false);
+  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.BOOKING);
+  
 
   // Parse URL parameters
   const bookingDate = date ? parseISO(date) : new Date();
   const selectedTimes = times ? times.split(',') : [];
-  
-  console.log('URL Parameters:', { courtId, date, times });
+  const totalPrice = courtData ? (courtData.price * selectedTimes.length).toFixed(2) : '0.00';
+  const currencySymbol = 'Php';
 
   // Fetch court data
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Starting fetchData with courtId:', courtId);
-      
       if (!courtId) {
-        const errorMsg = 'Error: No court ID provided in URL';
-        console.error(errorMsg);
-        setError(errorMsg);
+        setError('Error: No court ID provided in URL');
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
-        console.log('Fetching court data for ID:', courtId);
-        
-        // Log Firestore instance and database reference
-        console.log('Firestore instance:', db);
-        console.log('Collection path: courts/', courtId);
-        
         const courtRef = doc(db, 'courts', courtId);
-        console.log('Court reference:', courtRef);
-        
         const courtDoc = await getDoc(courtRef);
-        console.log('Court document snapshot:', {
-          exists: courtDoc.exists(),
-          id: courtDoc.id,
-          data: courtDoc.data()
-        });
-        
+
         if (courtDoc.exists()) {
           const courtData = {
             id: courtDoc.id,
             ...courtDoc.data()
           };
-          console.log('Court data to set:', courtData);
-          
-          // Validate required fields
-          if (!courtData.name || !courtData.location) {
-            console.warn('Court data is missing required fields:', courtData);
-          }
-          
+
           setCourtData(courtData);
-          console.log('Court data set in state');
-          
+
           // Fetch court owner's information if userId exists
           if (courtData.userId) {
             try {
               const userRef = doc(db, 'users', courtData.userId);
               const userDoc = await getDoc(userRef);
-              
+
               if (userDoc.exists()) {
-                const ownerData = userDoc.data();
-                setCourtOwner({
-                  id: userDoc.id,
-                  ...ownerData
-                });
-                console.log('Court owner data:', ownerData);
-                
-                // Pre-fill form with owner's payment methods if available
-                if (ownerData.paymentMethods?.length > 0) {
-                  console.log('Owner has payment methods available');
-                }
+                setCourtOwner(prev => ({
+                  ...prev,
+                  ...userDoc.data(),
+                  paymentMethods: userDoc.data().paymentMethods || []
+                }));
               }
             } catch (err) {
               console.error('Error fetching court owner data:', err);
-              // Continue even if we can't fetch owner data
             }
           }
-          
-          // Set default form data
-          setFormData(prev => ({
-            ...prev,
-            fullName: '',
-            email: '',
-            phone: ''
-          }));
-          
+
           setError(null);
         } else {
-          const errorMsg = `No court found with ID: ${courtId}`;
-          console.error(errorMsg);
-          setError(errorMsg);
+          setError(`No court found with ID: ${courtId}`);
         }
       } catch (error) {
-        const errorMsg = `Error loading court data: ${error.message}`;
-        console.error(errorMsg, error);
-        setError(errorMsg);
+        setError(`Error loading court data: ${error.message}`);
       } finally {
-        console.log('Finished loading, setting loading to false');
         setLoading(false);
       }
     };
 
     fetchData();
   }, [courtId]);
-  
-  // Add loading and error states to the UI
-  if (loading) {
-    return (
-      <div className="booking-summary">
-        <div className="container">
-          <div className="loading">
-            <h2>Loading Booking Information</h2>
-            <p>Please wait while we load the court details...</p>
-            <p>Court ID: {courtId}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="booking-summary">
-        <div className="container">
-          <div className="error-message">
-            <h2>Error Loading Booking</h2>
-            <p className="error-text">{error}</p>
-            <p>Court ID: {courtId || 'Not provided'}</p>
-            <p>Please try again or contact support if the problem persists.</p>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="booking-summary">
-        <div className="container">
-          <div className="error">
-            <h3>Error</h3>
-            <p>{error}</p>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Format time slots for display
   const formatTimeSlots = () => {
     if (selectedTimes.length === 0) return 'No time selected';
-    
+
     // If only one time slot
     if (selectedTimes.length === 1) {
       const [start] = selectedTimes[0].split(':');
       const endTime = `${parseInt(start) + 1}:00`;
       return `${selectedTimes[0]} - ${endTime}`;
     }
-    
+
     // If multiple time slots, show first and last time
     const firstTime = selectedTimes[0];
     const lastTime = selectedTimes[selectedTimes.length - 1];
     const [lastHour] = lastTime.split(':');
     const endTime = `${parseInt(lastHour) + 1}:00`;
-    
+
     return `${firstTime} - ${endTime} (${selectedTimes.length} slots)`;
   };
-
-  // Calculate total price
-  const totalPrice = courtData ? (courtData.price * selectedTimes.length).toFixed(2) : '0.00';
-  const currencySymbol = 'Php';
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -241,15 +142,15 @@ export const BookingSummary = () => {
   const uploadPaymentProof = async (file) => {
     try {
       if (!file) return null;
-      
+
       // Create a unique filename for the payment proof
       const fileExt = file.name.split('.').pop();
       const fileName = `payment_proofs/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const storageRef = ref(storage, fileName);
-      
+
       // Upload the file
       const snapshot = await uploadBytes(storageRef, file);
-      
+
       // Get the download URL
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
@@ -278,39 +179,45 @@ export const BookingSummary = () => {
     return newTransactionId;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    if (isLoading) return;
-    
-    // If payment proof is not uploaded yet, trigger file input
-    if (!isPaymentUploaded) {
-      document.getElementById('payment-proof-input').click();
+    setError('');
+
+    if (selectedPaymentMethod == null) {
+      setError('Please select a payment method');
       return;
     }
-    
+
+    if (!paymentProof && !isPaymentUploaded) {
+      setError('Please upload payment proof');
+      return;
+    }
+
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
       // Validate form
       if (!formData.fullName || !formData.email || !formData.phone) {
         throw new Error('Please fill in all required fields');
       }
-      
+
       if (!selectedTimes.length) {
         throw new Error('No time slots selected');
       }
-      
+
       if (!paymentProof) {
         throw new Error('Please upload payment proof');
       }
-      
+
       // Upload payment proof and get URL
       const paymentProofUrl = await uploadPaymentProof(paymentProof);
-      
-      // Get or create transaction ID
       const transactionId = getOrCreateTransactionId();
       
-      // Create booking data
       const bookingData = {
         transactionId, // Add transaction ID to booking data
         courtId,
@@ -338,25 +245,57 @@ export const BookingSummary = () => {
         },
         notes: formData.notes,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        recaptchaToken
       };
-      
+
       // Add booking to Firestore
-      const docRef = await addDoc(collection(db, 'bookings'), bookingData);
-      console.log('Booking created with ID: ', docRef.id);
-      
+      await addDoc(collection(db, 'bookings'), bookingData);
       setBookingSuccess(true);
-      
-      // Redirect to bookings page with the transaction ID
       navigate('/bookings');
-      
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      setError(error.message || 'Failed to create booking. Please try again.');
+    } catch (err) {
+      setError(err.message || 'An error occurred while processing your booking');
+      console.error('Booking error:', err);
+      resetRecaptcha();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedPaymentMethod, paymentProof, isPaymentUploaded, recaptchaToken, formData, selectedTimes, courtData, courtOwner, bookingDate, navigate, resetRecaptcha]);
+
+  if (loading) {
+    return (
+      <div className="booking-summary">
+        <div className="container">
+          <div className="loading">
+            <h2>Loading Booking Information</h2>
+            <p>Please wait while we load the court details...</p>
+            <p>Court ID: {courtId}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="booking-summary">
+        <div className="container">
+          <div className="error-message">
+            <h2>Error Loading Booking</h2>
+            <p className="error-text">{error}</p>
+            <p>Court ID: {courtId || 'Not provided'}</p>
+            <p>Please try again or contact support if the problem persists.</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!courtData || Object.keys(courtData).length === 0) {
     return (
@@ -381,7 +320,7 @@ export const BookingSummary = () => {
           <div className="success-message">
             <div className="success-icon">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor" />
               </svg>
             </div>
             <h2>Booking Confirmed!</h2>
@@ -399,7 +338,7 @@ export const BookingSummary = () => {
     <div className="booking-summary">
       <div className="container">
         <h1 className="page-title">Complete Your Booking</h1>
-        
+
         <div className="booking-container">
           <div className="booking-details">
             <h2>Booking Summary</h2>
@@ -416,8 +355,8 @@ export const BookingSummary = () => {
                   <p>Select your preferred payment method for this booking</p>
                   <div className="payment-options">
                     {courtOwner.paymentMethods.map((method, index) => (
-                      <label 
-                        key={index} 
+                      <label
+                        key={index}
                         className={`payment-option ${selectedPaymentMethod === index ? 'selected' : ''}`}
                         onClick={() => setSelectedPaymentMethod(index)}
                       >
@@ -431,7 +370,7 @@ export const BookingSummary = () => {
                           <span className="custom-radio"></span>
                           {selectedPaymentMethod === index && <span className="checkmark">✓</span>}
                         </div>
-                        
+
                         {method.image ? (
                           <img
                             src={method.image}
@@ -447,56 +386,56 @@ export const BookingSummary = () => {
                             {method.name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        
+
                         <div className="payment-info">
                           <div className="payment-name">{method.name}</div>
                           <div className="payment-type">
-                            {method.name.toLowerCase().includes('bank') ? 'Bank Transfer' : 
-                             method.name.toLowerCase().includes('paypal') ? 'PayPal' : 
-                             method.name.toLowerCase().includes('cash') ? 'Cash' : 'Payment'}
+                            {method.name.toLowerCase().includes('bank') ? 'Bank Transfer' :
+                              method.name.toLowerCase().includes('paypal') ? 'PayPal' :
+                                method.name.toLowerCase().includes('cash') ? 'Cash' : 'Payment'}
                           </div>
                         </div>
                       </label>
                     ))}
                   </div>
-                </div>
-              
-                <div className="payment-method">
-                  <h3>Summary</h3>
-                  <div className="no-payment-methods">
-                    <span>{format(bookingDate, 'EEEE, MMMM d, yyyy')}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Time Slots:</span>
-                    <div className="time-slots-summary">
-                      {selectedTimes.map((time, index) => {
-                        const [hour] = time.split(':');
-                        const endTime = `${parseInt(hour) + 1}:00`;
-                        return (
-                          <div key={index} className="time-slot">
-                            {time} - {endTime}
-                          </div>
-                        );
-                      })}
+
+                  <div className="payment-method">
+                    <h3>Summary</h3>
+                    <div className="no-payment-methods">
+                      <span>{format(bookingDate, 'EEEE, MMMM d, yyyy')}</span>
                     </div>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Total Duration:</span>
-                    <span>{selectedTimes.length} hour{selectedTimes.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="detail">
-                    <span>Price per hour:</span>
-                    <span>{currencySymbol} {courtData?.price ? parseFloat(courtData.price).toFixed(2) : '0.00'}/hour</span>
-                  </div>
-                  <div className="detail-row total">
-                    <span>Total Amount:</span>
-                    <span>{currencySymbol} {totalPrice}</span>
+                    <div className="detail-row">
+                      <span className="label">Time Slots:</span>
+                      <div className="time-slots-summary">
+                        {selectedTimes.map((time, index) => {
+                          const [hour] = time.split(':');
+                          const endTime = `${parseInt(hour) + 1}:00`;
+                          return (
+                            <div key={index} className="time-slot">
+                              {time} - {endTime}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Total Duration:</span>
+                      <span>{selectedTimes.length} hour{selectedTimes.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="detail">
+                      <span>Price per hour:</span>
+                      <span>{currencySymbol} {courtData?.price ? parseFloat(courtData.price).toFixed(2) : '0.00'}/hour</span>
+                    </div>
+                    <div className="detail-row total">
+                      <span>Total Amount:</span>
+                      <span>{currencySymbol} {totalPrice}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div className="booking-form-container">
             <h2>Your Information</h2>
             <form onSubmit={handleSubmit} className="booking-form">
@@ -512,7 +451,7 @@ export const BookingSummary = () => {
                   placeholder="John Doe"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="email">Email Address *</label>
                 <input
@@ -525,7 +464,7 @@ export const BookingSummary = () => {
                   placeholder="you@example.com"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label>Payment Proof *</label>
                 <div className="file-upload-container">
@@ -553,7 +492,7 @@ export const BookingSummary = () => {
                           <polyline points="17 8 12 3 7 8"></polyline>
                           <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>Upload Payment Proof</span>
+                        <span>Upload Payment Proof Max 1MB</span>
                         <small>Click to upload image of your payment receipt</small>
                       </div>
                     )}
@@ -563,7 +502,7 @@ export const BookingSummary = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="phone">Phone Number *</label>
                 <input
@@ -576,7 +515,7 @@ export const BookingSummary = () => {
                   placeholder="(123) 456-7890"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="notes">Special Requests (Optional)</label>
                 <textarea
@@ -588,7 +527,7 @@ export const BookingSummary = () => {
                   placeholder="Any special requests or notes for your booking..."
                 />
               </div>
-              
+
               <div className="terms">
                 <label className="checkbox-container">
                   <input type="checkbox" required />
@@ -596,18 +535,26 @@ export const BookingSummary = () => {
                   I agree to the <a href="#">Terms & Conditions</a> and <a href="#">Cancellation Policy</a>
                 </label>
               </div>
-              
-              <button type="submit" className="submit-button" disabled={isLoading}>
-                {isLoading ? 'Processing...' : `Pay Php ${totalPrice} & Confirm Booking`}
+
+              <div className="form-group">
+                <RecaptchaComponent />
+              </div>
+
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Processing...' : 'Confirm Booking'}
               </button>
-              
+
               <p className="secure-payment">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path>
                 </svg>
                 Secure payment. Your information is encrypted.
-              </p>
-            </form>
+            </p>
+          </form>
           </div>
         </div>
       </div>

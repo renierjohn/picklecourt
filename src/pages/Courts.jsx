@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { format, addDays, isToday, isWeekend, isSameDay } from 'date-fns';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { format, addDays, isToday, isWeekend, isSameDay, parseISO } from 'date-fns';
+import { getFirestore, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../firebase/config';
 import { initializeApp } from 'firebase/app';
 import { CourtCard } from '../components/CourtCard';
@@ -12,40 +12,6 @@ import '../styles/pages/home.scss';
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// Sample booking data - in a real app, this would come from an API
-// const sampleBookings = [
-//   {
-//     id: 1,
-//     courtId: 1,
-//     date: '2025-10-21',
-//     times: ['10:00', '11:00', '13:00'] // Specific time slots that are booked
-//   },
-//   {
-//     id: 10,
-//     courtId: 1,
-//     date: '2025-11-22',
-//     times: ['08:00', '09:00', '11:00'] // Specific time slots that are booked
-//   },
-//   {
-//     id: 2,
-//     courtId: 2,
-//     date: '2025-11-03',
-//     times: ['14:00', '15:00']
-//   },
-//   {
-//     id: 3,
-//     courtId: 1,
-//     date: '2025-10-20',
-//     times: ['14:00', '15:00']
-//   },
-//   {
-//     id: 4,
-//     courtId: 2,
-//     date: '2025-11-02',
-//     times: ['14:00', '15:00']
-//   },
-// ];
 
 export const Courts = () => {
   const navigate = useNavigate();
@@ -58,10 +24,32 @@ export const Courts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch user ID by profile_id and then fetch their courts
+  // Fetch courts data from Firestore
   useEffect(() => {
-    console.log('Fetching user with profile_id:', userId);
+    if (!bookings) return;
     
+    // Subscribe to courts collection
+    const bookingQuery = query(
+      collection(db, 'bookings'),
+      where('courtId', '==', selectedCourt),
+      where('status', '==', 'confirmed')
+    );
+    
+    const unsubscribeBookings = onSnapshot(bookingQuery, (snapshot) => {
+      const bookingsData = [];
+      
+      snapshot.forEach((doc) => {
+        const bookingsDoc = { id: doc.id, ...doc.data() };
+        bookingsData.push(bookingsDoc);
+      });
+      setBookings(bookingsData);
+    });
+    
+    return () => unsubscribeBookings();
+  }, [selectedCourt]);
+  
+  // Fetch user ID by profile_id and then fetch their courts
+  useEffect(() => {    
     const fetchUserAndCourts = async () => {
       try {
         setLoading(true);
@@ -77,23 +65,17 @@ export const Courts = () => {
         
         // Get the user document
         const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data();
+        // const userData = userDoc.data();
         const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
         
-        console.log('Found user:', userData.name, 'with ID:', actualUserId);
-        
         // Now fetch courts for this user
-        console.log('Fetching courts for user ID:', actualUserId);
         const courtsRef = collection(db, 'courts');
         const q = query(courtsRef, where('userId', '==', actualUserId));
         const querySnapshot = await getDocs(q);
         
-        console.log('Firestore query completed. Number of courts found:', querySnapshot.size);
-        
         const courtsList = [];
         querySnapshot.forEach((doc) => {
           const courtData = { id: doc.id, ...doc.data() };
-          console.log('Court data:', courtData);
           courtsList.push(courtData);
         });
  
@@ -101,19 +83,11 @@ export const Courts = () => {
         
         // Set the first court as selected if available
         if (courtsList.length > 0) {
-          console.log('Setting selected court to:', courtsList[0].id);
           setSelectedCourt(courtsList[0].id);
-        } else {
-          console.log('No courts found for this user');
         }
-        
-        // In a real app, you would also fetch bookings here
-        // This is a simplified example
-        // setBookings(sampleBookings);
         
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching courts:', err);
         setError('Failed to load courts. Please try again later.');
         setLoading(false);
       }
@@ -122,7 +96,6 @@ export const Courts = () => {
     if (userId) {
       fetchUserAndCourts();
     } else {
-      console.error('No profile ID provided in URL');
       setError('No user specified. Please check the URL.');
       setLoading(false);
     }
@@ -148,18 +121,56 @@ export const Courts = () => {
       </div>
     );
   }
-  
 
   if (loading) {
     return (
-      <div className="home">
-        <HeroBanner />
-        <div className="container">
-          <div className="loading">
-            <p>Loading courts...</p>
-            <p>Please wait while we fetch the available courts.</p>
-          </div>
+      <div className="loading-container" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '50vh',
+        textAlign: 'center',
+        padding: '2rem'
+      }}>
+        <div style={{
+          width: '120px',
+          height: '120px',
+          borderRadius: '50%',
+          backgroundColor: '#f0f2f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '1.5rem',
+          overflow: 'hidden',
+          border: '3px solid #e9ecef',
+          position: 'relative'
+        }}>
+          <div className="profile-image-loader" style={{
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, #f0f2f5 25%, #e9ecef 50%, #f0f2f5 75%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1.5s infinite',
+            borderRadius: '50%'
+          }} />
         </div>
+        <h3 style={{
+          margin: '1rem 0 0.5rem',
+          color: '#333',
+          fontWeight: '600'
+        }}>Loading Courts</h3>
+        <p style={{
+          color: '#666',
+          margin: '0',
+          fontSize: '0.95rem'
+        }}>Please wait while we load the available courts...</p>
+        <style>{
+          `@keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }`
+        }</style>
       </div>
     );
   }
@@ -239,21 +250,28 @@ export const Courts = () => {
     if (court.daySpecificUnavailableHours?.[dayOfWeek]?.includes(time24)) {
       return true;
     }
-    
+ 
     // Check if this time is in any booking's times array for the selected court and date
     return bookings.some(booking => {
-      // Skip if not the same date or not for the selected court
-      if (booking.date !== dateStr || booking.courtId !== selectedCourt) return false;
-      
+      // Skip if not the same date or not for the selected court  
+      if (formatDate(booking.date) !== dateStr || booking.courtId !== selectedCourt) return false;
+      // console.log(selectedCourt, time24, booking.times, booking.times.includes(time24))
       // Check if the time24 is in the booking's times array
       return booking.times.includes(time24);
     });
   };
 
+  const formatDate = (dateString) => {
+    try {
+      return format(parseISO(dateString), 'yyyy-MM-dd');
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
   // Check if a day is fully booked or marked as unavailable
   const isDayFullyBooked = (date) => {
     if (!selectedCourt) return false;
-    
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayOfWeek = format(date, 'EEEE').toLowerCase(); // e.g., 'monday', 'tuesday', etc.
     const court = courts.find(c => c.id === selectedCourt);
@@ -341,7 +359,7 @@ export const Courts = () => {
       end: `${endHour.toString().padStart(2, '0')}:00`
     };
   });
-  
+
   // Convert to display format with time ranges
   const timeSlots = timeSlots24.map(slot => {
     const startTime = formatTime(slot.start);
@@ -353,8 +371,6 @@ export const Courts = () => {
       end: slot.end
     };
   });
-
-
   // Generate dates for the next 2 months (current month + next month)
   const today = new Date();
   const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Last day of next month
@@ -510,9 +526,9 @@ export const Courts = () => {
             <div className="time-slots-grid">
               {timeSlots.map(({ display, value: time24, start, end }) => {
                 // Check if any time within the range is unavailable
-                const isLunch = isLunchBreak(start) || isLunchBreak(end);
-                const isUnavailable = isTimeUnavailable(start) || isTimeUnavailable(end);
-                const isBooked = (isTimeSlotBooked(selectedDate, start) || isTimeSlotBooked(selectedDate, end)) && !isUnavailable;
+                const isLunch = isLunchBreak(start);
+                const isUnavailable = isTimeUnavailable(start);
+                const isBooked = isTimeSlotBooked(selectedDate, start) && !isUnavailable;
                 const isSelected = selectedTimes.includes(time24);
                 const court = courts.find(c => c.id === selectedCourt);
                 

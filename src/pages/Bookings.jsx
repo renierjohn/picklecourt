@@ -141,7 +141,7 @@ export const Bookings = () => {
   }, []);
 
   const formatDate = (dateString) => {
-    try {
+    try {     
       return format(parseISO(dateString), 'MMMM d, yyyy');
     } catch (error) {
       return 'Invalid date';
@@ -224,11 +224,16 @@ export const Bookings = () => {
                     <FaClock className="icon" />
                     <span>
                       {booking.times && booking.times.length > 0 
-                        ? `${formatTime(booking.times[0])} - ${formatTime(
-                            booking.times[booking.times.length - 1].split(':')[0] + 
-                            ':' + 
-                            (parseInt(booking.times[0].split(':')[1]) + 60).toString().padStart(2, '0')
-                          )}` 
+                        ? booking.times.map((time, index) => {
+                            const [hour, minute] = time.split(':').map(Number);
+                            const endHour = (hour + 1) % 24;
+                            const endTime = `${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                            return (
+                              <div key={index} className="time-slot">
+                                {formatTime(time)} - {formatTime(endTime)}
+                              </div>
+                            );
+                          })
                         : 'No time selected'}
                     </span>
                   </div>
