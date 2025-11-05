@@ -100,7 +100,7 @@ export const Home = () => {
                     </div>
                     <button 
                       className="btn btn-primary"
-                      onClick={() => navigate(`/book/${user.id}`)}
+                      onClick={() => navigate(`/book/${user.profile_id || user.id}`)}
                     >
                       Book Now
                     </button>

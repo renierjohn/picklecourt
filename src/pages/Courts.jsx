@@ -14,38 +14,38 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // Sample booking data - in a real app, this would come from an API
-const sampleBookings = [
-  {
-    id: 1,
-    courtId: 1,
-    date: '2025-10-21',
-    times: ['10:00', '11:00', '13:00'] // Specific time slots that are booked
-  },
-  {
-    id: 10,
-    courtId: 1,
-    date: '2025-11-22',
-    times: ['08:00', '09:00', '11:00'] // Specific time slots that are booked
-  },
-  {
-    id: 2,
-    courtId: 2,
-    date: '2025-11-03',
-    times: ['14:00', '15:00']
-  },
-  {
-    id: 3,
-    courtId: 1,
-    date: '2025-10-20',
-    times: ['14:00', '15:00']
-  },
-  {
-    id: 4,
-    courtId: 2,
-    date: '2025-11-02',
-    times: ['14:00', '15:00']
-  },
-];
+// const sampleBookings = [
+//   {
+//     id: 1,
+//     courtId: 1,
+//     date: '2025-10-21',
+//     times: ['10:00', '11:00', '13:00'] // Specific time slots that are booked
+//   },
+//   {
+//     id: 10,
+//     courtId: 1,
+//     date: '2025-11-22',
+//     times: ['08:00', '09:00', '11:00'] // Specific time slots that are booked
+//   },
+//   {
+//     id: 2,
+//     courtId: 2,
+//     date: '2025-11-03',
+//     times: ['14:00', '15:00']
+//   },
+//   {
+//     id: 3,
+//     courtId: 1,
+//     date: '2025-10-20',
+//     times: ['14:00', '15:00']
+//   },
+//   {
+//     id: 4,
+//     courtId: 2,
+//     date: '2025-11-02',
+//     times: ['14:00', '15:00']
+//   },
+// ];
 
 export const Courts = () => {
   const navigate = useNavigate();
@@ -58,18 +58,34 @@ export const Courts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch courts for the specific user
+  // Fetch user ID by profile_id and then fetch their courts
   useEffect(() => {
-    console.log('Fetching courts for user ID:', userId);
+    console.log('Fetching user with profile_id:', userId);
     
-    const fetchCourts = async () => {
+    const fetchUserAndCourts = async () => {
       try {
         setLoading(true);
-        console.log('Fetching courts from Firestore...');
         
-        // Fetch courts filtered by userId
+        // First, find the user with the matching profile_id
+        const usersRef = collection(db, 'users');
+        const userQuery = query(usersRef, where('profile_id', '==', userId));
+        const userSnapshot = await getDocs(userQuery);
+        
+        if (userSnapshot.empty) {
+          throw new Error('No user found with this profile ID');
+        }
+        
+        // Get the user document
+        const userDoc = userSnapshot.docs[0];
+        const userData = userDoc.data();
+        const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
+        
+        console.log('Found user:', userData.name, 'with ID:', actualUserId);
+        
+        // Now fetch courts for this user
+        console.log('Fetching courts for user ID:', actualUserId);
         const courtsRef = collection(db, 'courts');
-        const q = query(courtsRef, where('userId', '==', userId));
+        const q = query(courtsRef, where('userId', '==', actualUserId));
         const querySnapshot = await getDocs(q);
         
         console.log('Firestore query completed. Number of courts found:', querySnapshot.size);
@@ -93,7 +109,7 @@ export const Courts = () => {
         
         // In a real app, you would also fetch bookings here
         // This is a simplified example
-        setBookings(sampleBookings);
+        // setBookings(sampleBookings);
         
         setLoading(false);
       } catch (err) {
@@ -104,13 +120,34 @@ export const Courts = () => {
     };
 
     if (userId) {
-      fetchCourts();
+      fetchUserAndCourts();
     } else {
-      console.error('No user ID provided in URL');
+      console.error('No profile ID provided in URL');
       setError('No user specified. Please check the URL.');
       setLoading(false);
     }
   }, [userId]);
+
+  // Update error handling in the error state UI
+  if (error) {
+    return (
+      <div className="home">
+        <HeroBanner />
+        <div className="container">
+          <div className="error">
+            <h3>Error Loading Courts</h3>
+            <p>{error}</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
 
   if (loading) {
@@ -292,20 +329,30 @@ export const Courts = () => {
     const [hours, minutes] = time24.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return `${hours12}:${minutes.toString().padStart(2, '0')}${period}`;
   };
 
-  // Generate time slots from 8 AM to 8 PM in 24-hour format
-  const timeSlots24 = Array.from({ length: 13 }, (_, i) => {
-    const hour = 8 + i;
-    return `${hour.toString().padStart(2, '0')}:00`;
+  // Generate time slots from 5 AM to 12 AM in 24-hour format with 1-hour gaps
+  const timeSlots24 = Array.from({ length: 19 }, (_, i) => {
+    const startHour = 5 + i;
+    const endHour = 6 + i;
+    return {
+      start: `${startHour.toString().padStart(2, '0')}:00`,
+      end: `${endHour.toString().padStart(2, '0')}:00`
+    };
   });
   
-  // Convert to 12-hour format for display
-  const timeSlots = timeSlots24.map(time24 => ({
-    display: formatTime(time24),
-    value: time24 // Keep original value for calculations
-  }));
+  // Convert to display format with time ranges
+  const timeSlots = timeSlots24.map(slot => {
+    const startTime = formatTime(slot.start);
+    const endTime = formatTime(slot.end);
+    return {
+      display: `${startTime} - ${endTime}`,
+      value: slot.start, // Use start time as the value for compatibility
+      start: slot.start,
+      end: slot.end
+    };
+  });
 
 
   // Generate dates for the next 2 months (current month + next month)
@@ -321,104 +368,8 @@ export const Courts = () => {
   return (
     <div className="courts">
       <HeroBanner />
-      <section className="calendar-section">
-        <div className="container">
-          <h1 className="section-title">Book a Court</h1>
-          <div className="date-selector">
-            {days.map((day) => {
-              const dayOfWeek = format(day, 'EEE');
-              const dayOfMonth = format(day, 'd');
-              const isSelected = isSameDay(day, selectedDate);
-              const isUnavailable = isDayFullyBooked(day);
-              const dayName = format(day, 'EEEE').toLowerCase();
-              const court = courts.find(c => c.id === selectedCourt);
-              const isDayUnavailable = court?.unavailableDays?.includes(dayName);
-              
-              return (
-                <button
-                  key={day.toString()}
-                  className={`date-button ${isSelected ? 'selected' : ''} ${
-                    isWeekend(day) ? 'weekend' : ''
-                  } ${isUnavailable ? 'unavailable' : ''} ${isDayUnavailable ? 'unavailable' : ''}`}
-                  onClick={() => !isUnavailable && !isDayUnavailable && setSelectedDate(day)}
-                  disabled={isUnavailable || isDayUnavailable}
-                  title={isDayUnavailable ? 'This day is not available for booking' : isUnavailable ? 'This day is fully booked' : ''}
-                >
-                  <span className="day">{dayOfWeek}</span>
-                  <span className={`date ${isToday(day) ? 'today' : ''}`}>
-                    {dayOfMonth}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="time-slots">
-            <div className="time-slots-grid">
-              {timeSlots.map(({ display, value: time24 }) => {
-                const isLunch = isLunchBreak(time24);
-                const isUnavailable = isTimeUnavailable(time24);
-                const isBooked = isTimeSlotBooked(selectedDate, time24) && !isUnavailable; // Don't show as booked if it's actually marked as unavailable
-                const isSelected = selectedTimes.includes(time24);
-                const court = courts.find(c => c.id === selectedCourt);
-                
-                return (
-                  <button
-                    key={time24}
-                    className={`time-slot ${isSelected ? 'selected' : ''} ${
-                      isBooked ? 'booked' : ''
-                    } ${isLunch ? 'lunch-break' : ''} ${isUnavailable ? 'unavailable' : ''}`}
-                    onClick={() => !isBooked && !isUnavailable && toggleTimeSlot(time24)}
-                    disabled={isBooked || isUnavailable}
-                    title={
-                      isLunch ? 'Lunch Break (12:00 PM - 1:00 PM)' : 
-                      isUnavailable ? 'This time slot is not available for booking' :
-                      isBooked ? 'This time slot is already booked' : ''
-                    }
-                  >
-                    {isLunch ? 'Lunch Break' : display}
-                    {isBooked && !isLunch && !isUnavailable && <span className="booked-badge">Booked</span>}
-                    {isUnavailable && !isLunch && (
-                      <span className="unavailable-badge">
-                        {court?.daySpecificUnavailableHours?.[format(selectedDate, 'EEEE').toLowerCase()]?.includes(time24) 
-                          ? 'Unavailable (Open Play)' 
-                          : 'Unavailable'}
-                      </span>
-                    )}
-                    {isLunch && <span className="lunch-badge">Closed</span>}
-                  </button>
-                );
-              })}
-            </div>
-            {selectedTimes.length > 0 && (
-              <div className="selected-times">
-                <h4>Selected Times:</h4>
-                <div className="selected-times-list">
-                  {selectedTimes.map(time24 => {
-                    const timeDisplay = timeSlots.find(t => t.value === time24)?.display || time24;
-                    return (
-                      <span key={time24} className="selected-time-tag">
-                        {timeDisplay}
-                        <button 
-                          className="remove-time"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedTimes(prev => prev.filter(t => t !== time24));
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
-      <section id="courts-section" className="courts-section">
+            <section id="courts-section" className="courts-section">
         <div className="container">
           <h2 className="section-title">Select a Court</h2>
           <div className="courts-grid">
@@ -466,7 +417,7 @@ export const Courts = () => {
                         Currently unavailable for booking
                       </span>
                     ) : (
-                      <span className="slots">Max Slots: {court.maxSlots}</span>
+                      <span className="slots">Php {court.price}</span>
                     )}
                   </div>
                 </div>
@@ -520,6 +471,104 @@ export const Courts = () => {
               )}
             </div>
           )}
+        </div>
+      </section>
+      
+      <section className="calendar-section">
+        <div className="container">
+          <h1 className="section-title">Book a Court</h1>
+          <div className="date-selector">
+            {days.map((day) => {
+              const dayOfWeek = format(day, 'EEE');
+              const dayOfMonth = format(day, 'd');
+              const isSelected = isSameDay(day, selectedDate);
+              const isUnavailable = isDayFullyBooked(day);
+              const dayName = format(day, 'EEEE').toLowerCase();
+              const court = courts.find(c => c.id === selectedCourt);
+              const isDayUnavailable = court?.unavailableDays?.includes(dayName);
+              
+              return (
+                <button
+                  key={day.toString()}
+                  className={`date-button ${isSelected ? 'selected' : ''} ${
+                    isWeekend(day) ? 'weekend' : ''
+                  } ${isUnavailable ? 'unavailable' : ''} ${isDayUnavailable ? 'unavailable' : ''}`}
+                  onClick={() => !isUnavailable && !isDayUnavailable && setSelectedDate(day)}
+                  disabled={isUnavailable || isDayUnavailable}
+                  title={isDayUnavailable ? 'This day is not available for booking' : isUnavailable ? 'This day is fully booked' : ''}
+                >
+                  <span className="day">{dayOfWeek}</span>
+                  <span className={`date ${isToday(day) ? 'today' : ''}`}>
+                    {dayOfMonth}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="time-slots">
+            <div className="time-slots-grid">
+              {timeSlots.map(({ display, value: time24, start, end }) => {
+                // Check if any time within the range is unavailable
+                const isLunch = isLunchBreak(start) || isLunchBreak(end);
+                const isUnavailable = isTimeUnavailable(start) || isTimeUnavailable(end);
+                const isBooked = (isTimeSlotBooked(selectedDate, start) || isTimeSlotBooked(selectedDate, end)) && !isUnavailable;
+                const isSelected = selectedTimes.includes(time24);
+                const court = courts.find(c => c.id === selectedCourt);
+                
+                return (
+                  <button
+                    key={time24}
+                    className={`time-slot ${isSelected ? 'selected' : ''} ${
+                      isBooked ? 'booked' : ''
+                    } ${isLunch ? 'lunch-break' : ''} ${isUnavailable ? 'unavailable' : ''}`}
+                    onClick={() => !isBooked && !isUnavailable && toggleTimeSlot(time24)}
+                    disabled={isBooked || isUnavailable}
+                    title={
+                      isLunch ? 'Lunch Break (12:00 PM - 1:00 PM)' : 
+                      isUnavailable ? 'This time slot is not available for booking' :
+                      isBooked ? 'This time slot is already booked' : ''
+                    }
+                  >
+                    {isLunch ? 'Lunch Break' : display}
+                    {isBooked && !isLunch && !isUnavailable && <span className="booked-badge">Booked</span>}
+                    {isUnavailable && !isLunch && (
+                      <span className="unavailable-badge">
+                        {court?.daySpecificUnavailableHours?.[format(selectedDate, 'EEEE').toLowerCase()]?.includes(time24) 
+                          ? 'Unavailable' 
+                          : 'Unavailable'}
+                      </span>
+                    )}
+                    {isLunch && <span className="lunch-badge">Closed</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTimes.length > 0 && (
+              <div className="selected-times">
+                <h4>Selected Times:</h4>
+                <div className="selected-times-list">
+                  {selectedTimes.map(time24 => {
+                    const timeDisplay = timeSlots.find(t => t.value === time24)?.display || time24;
+                    return (
+                      <span key={time24} className="selected-time-tag">
+                        {timeDisplay}
+                        <button 
+                          className="remove-time"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTimes(prev => prev.filter(t => t !== time24));
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>

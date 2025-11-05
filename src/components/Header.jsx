@@ -61,7 +61,7 @@ export const Header = () => {
             <div className="nav-links">
               <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
               {user?.role === 'admin' && (
-                <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>Admin</Link>
+                <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
               )}
               {user?.email === 'renify.official@gmail.com' && (
                 <>
@@ -70,7 +70,8 @@ export const Header = () => {
                 </>
               )}
             </div>
-            
+            <Link to="/bookings" className="btn btn-login">My Bookings</Link>
+
             <div className="user-actions">
               {user ? (
                 <>

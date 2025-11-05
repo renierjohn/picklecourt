@@ -11,6 +11,7 @@ import DatabaseTest from './pages/DatabaseTest';
 import Unauthorized from './pages/Unauthorized.jsx';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Bookings } from './pages/Bookings';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
               <Route path="/book/:userId" element={<Courts />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
               <Route path="/booking-summary/:courtId/:date/:times" element={<BookingSummary />} />
+              <Route path="/bookings" element={<Bookings />} />
               <Route
                 path="/database-test"
                 element={

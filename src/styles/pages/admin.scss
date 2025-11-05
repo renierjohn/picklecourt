@@ -5,6 +5,132 @@
   .profile-section {
     margin-bottom: $spacing-xl;
     
+    .compact-hours {
+      .time-slots-panel {
+        padding: 0;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+        overflow: hidden;
+        box-shadow: $shadow-sm;
+      }
+
+      .time-slots-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 0;
+        
+        .time-slot-row {
+          display: flex;
+          align-items: center;
+          padding: $spacing-xs $spacing-sm;
+          border-bottom: 1px solid $border-color;
+          
+          &:nth-child(odd) {
+            background-color: rgba($light-bg, 0.5);
+          }
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          .day-abbr {
+            display: inline-block;
+            width: 40px;
+            font-weight: 600;
+            font-size: $font-size-sm;
+            color: $text-color;
+            text-align: center;
+            margin-right: $spacing-sm;
+          }
+          
+          .time-range {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            
+            .time-input-group {
+              display: flex;
+              align-items: center;
+              gap: $spacing-xs;
+              flex: 1;
+              
+              .time-input {
+                flex: 1;
+                padding: $spacing-xxs $spacing-xs;
+                border: 1px solid $border-color;
+                border-radius: $border-radius-sm;
+                font-size: $font-size-sm;
+                height: 30px;
+                min-width: 0;
+                
+                &:focus {
+                  outline: none;
+                  border-color: $primary-color;
+                  box-shadow: 0 0 0 1px $primary-color;
+                }
+              }
+              
+              .time-separator {
+                color: $text-muted;
+                font-size: $font-size-sm;
+                line-height: 1;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    .operation-hours {
+      .operation-hours-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: $spacing-sm;
+        margin-top: $spacing-xs;
+        
+        .operation-hours-day {
+          display: flex;
+          flex-direction: column;
+          gap: $spacing-xxs;
+          padding: $spacing-sm;
+          background: $light-bg;
+          border-radius: $border-radius-sm;
+          
+          .day-label {
+            font-size: $font-size-sm;
+            font-weight: 500;
+            color: $text-color;
+            margin-bottom: 4px;
+          }
+          
+          .time-inputs {
+            display: flex;
+            align-items: center;
+            gap: $spacing-xs;
+            
+            .time-input {
+              flex: 1;
+              padding: $spacing-xs $spacing-sm;
+              border: 1px solid $border-color;
+              border-radius: $border-radius-sm;
+              font-size: $font-size-sm;
+              
+              &:focus {
+                outline: none;
+                border-color: $primary-color;
+                box-shadow: 0 0 0 2px rgba($primary-color, 0.1);
+              }
+            }
+            
+            .time-separator {
+              color: $text-muted;
+              font-weight: 500;
+            }
+          }
+        }
+      }
+    }
+    
     .payment-methods {
       margin-top: $spacing-lg;
       

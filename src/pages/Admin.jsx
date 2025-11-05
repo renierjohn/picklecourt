@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
-import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt } from 'react-icons/fa';
+import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt, FaTrash } from 'react-icons/fa';
 import '../styles/pages/admin.scss';
 import '../styles/components/_booking-modal.scss';
 
@@ -229,7 +229,7 @@ export const Admin = () => {
           email: userData.email || user.email || '',
           location: userData.location || '',
           photoURL: userData.photoURL || '',
-          paymentMethods: userData.paymentMethods || []
+          paymentMethods: userData.paymentMethods || []      
         });
         setImagePreview(userData.photoURL || '');
       }
@@ -342,9 +342,13 @@ export const Admin = () => {
     
     setIsUpdating(true);
     try {
+      // Generate profile_id from name (lowercase with no whitespace)
+      const profileId = userProfile.name.toLowerCase().replace(/\s+/g, '');
+      
       const updates = {
         name: userProfile.name.trim(),
         location: userProfile.location.trim(),
+        profile_id: profileId,
         updatedAt: new Date().toISOString()
       };
 
@@ -385,7 +389,7 @@ export const Admin = () => {
       }
       
       updates.paymentMethods = updatedPaymentMethods;
-
+      
       await updateDoc(doc(db, 'users', user.uid), updates);
       
       // Update local state
@@ -726,6 +730,79 @@ export const Admin = () => {
     });
   };
 
+  const handleDeleteBooking = (bookingId) => {
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete Booking',
+      message: 'Are you sure you want to delete this booking? This action cannot be undone.',
+      confirmText: 'Delete',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          const bookingRef = doc(db, 'bookings', bookingId);
+          await deleteDoc(bookingRef);
+          // Update the local state to remove the deleted booking
+          setBookings(prev => prev.filter(b => b.id !== bookingId));
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('Error deleting booking:', error);
+          setModalConfig({
+            isOpen: true,
+            title: 'Error',
+            message: 'Failed to delete booking. Please try again.',
+            confirmText: 'OK',
+            danger: true
+          });
+        }
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const handleDeleteAllRecentBookings = () => {
+    if (recentBookings.length === 0) return;
+    
+    setModalConfig({
+      isOpen: true,
+      title: 'Delete All Recent Bookings',
+      message: `Are you sure you want to delete all ${recentBookings.length} recent bookings? This action cannot be undone.`,
+      confirmText: 'Delete All',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          const batch = writeBatch(db);
+          const bookingRefs = recentBookings.map(booking => doc(db, 'bookings', booking.id));
+          
+          // Add all delete operations to the batch
+          bookingRefs.forEach(ref => {
+            batch.delete(ref);
+          });
+          
+          // Commit the batch
+          await batch.commit();
+          
+          // Update local state
+          setBookings(prev => prev.filter(b => {
+            const bookingDate = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+            return bookingDate >= new Date(); // Keep only upcoming bookings
+          }));
+          
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error('Error deleting bookings:', error);
+          setModalConfig({
+            isOpen: true,
+            title: 'Error',
+            message: 'Failed to delete bookings. Please try again.',
+            confirmText: 'OK',
+            danger: true
+          });
+        }
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   // Filter upcoming bookings (today and future) for managed courts
   const managedCourtIds = courts.map(court => court.id);
 
@@ -865,10 +942,10 @@ export const Admin = () => {
                         name="location"
                         value={userProfile.location}
                         onChange={handleProfileChange}
-                        placeholder="Enter your location"
+                        placeholder="Your business location"
                       />
                     </div>
-                    
+                   
                     <div className="payment-methods">
                       <h4>Payment Methods</h4>
                       <div className="payment-methods-grid">
@@ -1016,27 +1093,38 @@ export const Admin = () => {
         <div className="stats-cards">
           <div className="stat-card">
             <h3>Total Bookings</h3>
-            <p className="stat-number">{bookings.length}</p>
+            <p className="stat-number">
+              {bookings.filter(booking => managedCourtIds.includes(booking.courtId)).length}
+            </p>
           </div>
           <div className="stat-card">
             <h3>Confirmed</h3>
             <p className="stat-number">
-              {bookings.filter(b => b.status === 'confirmed').length}
+              {bookings.filter(booking => 
+                booking.status === 'confirmed' && 
+                managedCourtIds.includes(booking.courtId)
+              ).length}
             </p>
           </div>
           <div className="stat-card">
             <h3>Pending</h3>
             <p className="stat-number">
-              {bookings.filter(b => b.status === 'pending').length}
+              {bookings.filter(booking => 
+                booking.status === 'pending' && 
+                managedCourtIds.includes(booking.courtId)
+              ).length}
             </p>
           </div>
           <div className="stat-card">
             <h3>Revenue</h3>
             <p className="stat-number">
               Php {bookings
-                .filter(b => b.status === 'confirmed')
-                .reduce((sum, booking) => sum + booking.amount, 0)
-                .toFixed(2)}
+                .filter(booking => 
+                  booking.status === 'confirmed' && 
+                  managedCourtIds.includes(booking.courtId)
+                )
+                .reduce((sum, booking) => sum + (parseFloat(booking.amount) || 0), 0)
+                .toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
@@ -1364,7 +1452,7 @@ export const Admin = () => {
                           {booking.status || 'Pending'}
                         </span>
                       </td>
-                      <td>₱{booking.totalPrice?.toFixed(2) || '0.00'}</td>
+                      <td>₱{Number(booking.totalPrice || 0).toFixed(2)}</td>
                       <td className="actions">
                         <div className="btn-group">
                           <button 
@@ -1392,6 +1480,94 @@ export const Admin = () => {
           ) : (
             <div className="no-bookings">
               <p>No upcoming bookings found.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Bookings Table */}
+        <div className="bookings-table-container" style={{ marginTop: '2rem' }}>
+          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2>Recent Bookings</h2>
+              <span className="badge">{recentBookings.length} Completed</span>
+            </div>
+            {recentBookings.length > 0 && (
+              <button 
+                className="btn btn-danger"
+                onClick={handleDeleteAllRecentBookings}
+                disabled={recentBookings.length === 0}
+              >
+                <FaTrash /> Delete All Recent
+              </button>
+            )}
+          </div>
+          
+          {recentBookings.length > 0 ? (
+            <div className="table-responsive">
+              <table className="bookings-table">
+                <thead>
+                  <tr>
+                    <th>Court</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Time Slots</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                    <th>Receipt</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentBookings.map(booking => {
+                    const bookingDate = booking.date?.toDate ? booking.date.toDate() : new Date(booking.date);
+                    const formattedDate = format(bookingDate, 'MMM d, yyyy');
+                    const court = courts.find(c => c.id === booking.courtId);
+                    const courtName = court ? court.name : 'Unknown Court';
+                    
+                    return (
+                      <tr key={booking.id}>
+                        <td>{courtName}</td>
+                        <td>{booking.userName || 'Guest'}</td>
+                        <td>{formattedDate}</td>
+                        <td>{booking.timeSlot}</td>
+                        <td>
+                          <div className="contact-info">
+                            <div>{booking.phone || 'N/A'}</div>
+                            {booking.email && <div className="text-muted small">{booking.email}</div>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${booking.status || 'completed'}`}>
+                            {booking.status || 'Completed'}
+                          </span>
+                        </td>
+                        <td>₱{booking.amount ? parseFloat(booking.amount).toFixed(2) : '0.00'}</td>
+                        <td>
+                          {booking.receiptNumber ? (
+                            <span className="receipt-number">
+                              {booking.receiptNumber}
+                            </span>
+                          ) : 'N/A'}
+                        </td>
+                        <td className="actions">
+                          <button 
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            title="Delete booking"
+                          >
+                            <FaTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="no-bookings">
+              <p>No recent bookings found.</p>
             </div>
           )}
         </div>
@@ -1458,7 +1634,7 @@ export const Admin = () => {
                     <span className="detail-label">
                       <FaMoneyBillWave className="mr-1" /> Amount
                     </span>
-                    <span className="detail-value amount">₱{selectedBooking.totalPrice?.toFixed(2) || '0.00'}</span>
+                    <span className="detail-value amount">₱{Number(selectedBooking.totalPrice || 0).toFixed(2)}</span>
                   </div>
                   
                   {selectedBooking.phone && (

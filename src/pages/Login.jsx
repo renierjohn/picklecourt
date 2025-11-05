@@ -80,11 +80,6 @@ export const Login = () => {
         <div className="auth-footer">
           Don't have an account? <Link to="/register">Register here</Link>
         </div>
-        <div className="demo-credentials">
-          <p>Demo Admin:</p>
-          <p>Email: admin@example.com</p>
-          <p>Password: admin123</p>
-        </div>
       </div>
     </div>
   );

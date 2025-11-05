@@ -4,6 +4,7 @@ import { format, parseISO, addHours } from 'date-fns';
 import { doc, getDoc, getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp } from 'firebase/app';
+import { v4 as uuidv4 } from 'uuid';
 import firebaseConfig from '../firebase/config';
 import '../styles/pages/booking-summary.scss';
 
@@ -258,6 +259,25 @@ export const BookingSummary = () => {
     }
   };
 
+  // Generate or get existing transaction ID from cookie
+  const getOrCreateTransactionId = () => {
+    // Check if transaction ID exists in cookie
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'transaction_id') {
+        return decodeURIComponent(value);
+      }
+    }
+    // If not exists, create a new one
+    const newTransactionId = `txn_${uuidv4().substring(0, 8)}`;
+    // Set cookie that expires in 7 days
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+    document.cookie = `transaction_id=${encodeURIComponent(newTransactionId)};expires=${expires.toUTCString()};path=/`;
+    return newTransactionId;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLoading) return;
@@ -287,8 +307,12 @@ export const BookingSummary = () => {
       // Upload payment proof and get URL
       const paymentProofUrl = await uploadPaymentProof(paymentProof);
       
+      // Get or create transaction ID
+      const transactionId = getOrCreateTransactionId();
+      
       // Create booking data
       const bookingData = {
+        transactionId, // Add transaction ID to booking data
         courtId,
         courtName: courtData?.name || 'Unknown Court',
         courtOwnerId: courtData?.userId || '',  // Owner's user ID
@@ -299,7 +323,7 @@ export const BookingSummary = () => {
         paymentStatus: 'pending',
         paymentProof: paymentProofUrl, // Store the uploaded payment proof URL
         paymentProofPreview: paymentProofPreview, // Keep preview for admin reference
-        totalPrice: selectedTimes.length * (courtData?.pricePerHour || 0),
+        totalPrice: totalPrice,
         user: {
           id: userData?.uid || '',
           name: formData.fullName,
@@ -323,10 +347,8 @@ export const BookingSummary = () => {
       
       setBookingSuccess(true);
       
-      // Redirect to success page after a short delay
-      setTimeout(() => {
-        navigate('/bookings');
-      }, 2000);
+      // Redirect to bookings page with the transaction ID
+      navigate('/bookings');
       
     } catch (error) {
       console.error('Error creating booking:', error);
