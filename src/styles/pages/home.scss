@@ -1,3 +1,121 @@
+// Loading Animation
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: 2rem;
+  
+  .loading-animation {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 2rem;
+    
+    .pickleball-ball {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(145deg, #ffd700, #ffb700);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+      animation: bounce 1.5s ease-in-out infinite;
+      z-index: 2;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: #333;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+      }
+      
+      &::before {
+        content: '';
+        position: absolute;
+        width: 2px;
+        height: 100%;
+        background: #333;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+      }
+    }
+    
+    .paddle {
+      position: absolute;
+      width: 20px;
+      height: 80px;
+      background: #e74c3c;
+      border-radius: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      
+      &.left {
+        left: 20px;
+        animation: paddleLeft 1.5s ease-in-out infinite;
+      }
+      
+      &.right {
+        right: 20px;
+        animation: paddleRight 1.5s ease-in-out infinite 0.4s;
+      }
+    }
+  }
+  
+  .loading-text {
+    font-size: 1.5rem;
+    color: $primary-color;
+    margin-top: 1.5rem;
+    font-weight: 500;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+      transform: translate(-50%, -100%) scale(1.1);
+    }
+  }
+  
+  @keyframes paddleLeft {
+    0%, 100% {
+      transform: translateY(-50%) rotate(-10deg);
+    }
+    50% {
+      transform: translateY(-50%) rotate(10deg);
+    }
+  }
+  
+  @keyframes paddleRight {
+    0%, 100% {
+      transform: translateY(-50%) rotate(10deg);
+    }
+    50% {
+      transform: translateY(-50%) rotate(-10deg);
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
 // Locations Section
 .locations-section {
   padding: $spacing-xxl 0;

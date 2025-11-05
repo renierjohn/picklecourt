@@ -8,7 +8,7 @@ import firebaseConfig from '../firebase/config';
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 import HeroBanner from '../components/HeroBanner';
-import { FaMapMarkerAlt, FaUser, FaPhone, FaClock } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaUser, FaPhone, FaClock, FaTableTennis } from 'react-icons/fa';
 import '../styles/pages/home.scss';
 
 export const Home = () => {
@@ -42,7 +42,16 @@ export const Home = () => {
   }, []);
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="loading-container">
+        <div className="loading-animation">
+          <div className="pickleball-ball"></div>
+          <div className="paddle left"></div>
+          <div className="paddle right"></div>
+        </div>
+        <p className="loading-text">Finding the best courts for you...</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -51,7 +60,10 @@ export const Home = () => {
 
   return (
     <div className="home">
-      <HeroBanner />
+      <HeroBanner 
+        variant="home"
+        backgroundImage="https://images.unsplash.com/photo-1638880121163-32b47a1b8a4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
+      />
       
       {/* Locations Section */}
       <section className="locations-section">

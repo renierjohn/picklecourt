@@ -35,6 +35,7 @@ export const BookingSummary = () => {
   const [paymentProof, setPaymentProof] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState(null);
   const [isPaymentUploaded, setIsPaymentUploaded] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
   const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.BOOKING);
   
 
@@ -376,10 +377,15 @@ export const BookingSummary = () => {
                             src={method.image}
                             alt={method.name}
                             className="payment-image"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomedImage(method.image);
+                            }}
                             onError={(e) => {
                               e.target.onerror = null;
                               e.target.src = 'https://via.placeholder.com/60x40?text=' + method.name.substring(0, 2).toUpperCase();
                             }}
+                            style={{ cursor: 'zoom-in' }}
                           />
                         ) : (
                           <div className="payment-image">
@@ -558,6 +564,16 @@ export const BookingSummary = () => {
           </div>
         </div>
       </div>
+      
+      {/* Zoomed Image Modal */}
+      {zoomedImage && (
+        <div className="image-zoom-modal" onClick={() => setZoomedImage(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="close-button" onClick={() => setZoomedImage(null)}>×</button>
+            <img src={zoomedImage} alt="Zoomed payment method" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -23,6 +23,7 @@ export const Courts = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userPhoto, setUserPhoto] = useState(null);
 
   // Fetch courts data from Firestore
   useEffect(() => {
@@ -65,7 +66,8 @@ export const Courts = () => {
         
         // Get the user document
         const userDoc = userSnapshot.docs[0];
-        // const userData = userDoc.data();
+        const userData = userDoc.data();
+        setUserPhoto(userData.photoURL || null);
         const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
         
         // Now fetch courts for this user
@@ -105,7 +107,7 @@ export const Courts = () => {
   if (error) {
     return (
       <div className="home">
-        <HeroBanner />
+        <HeroBanner backgroundImage={userPhoto} />
         <div className="container">
           <div className="error">
             <h3>Error Loading Courts</h3>
@@ -178,7 +180,7 @@ export const Courts = () => {
   if (error) {
     return (
       <div className="home">
-        <HeroBanner />
+        <HeroBanner backgroundImage={userPhoto} />
         <div className="container">
           <div className="error">
             <h3>Error Loading Courts</h3>
@@ -198,7 +200,7 @@ export const Courts = () => {
   if (courts.length === 0) {
     return (
       <div className="home">
-        <HeroBanner />
+        <HeroBanner backgroundImage={userPhoto} />
         <div className="container">
           <div className="no-courts">
             <p>No courts found for this user.</p>
@@ -383,7 +385,7 @@ export const Courts = () => {
 
   return (
     <div className="courts">
-      <HeroBanner />
+      <HeroBanner backgroundImage={userPhoto} />
 
             <section id="courts-section" className="courts-section">
         <div className="container">
