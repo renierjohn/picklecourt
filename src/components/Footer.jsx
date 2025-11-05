@@ -26,7 +26,7 @@ export const Footer = () => {
             <div className="footer-links-column">
               <h3>Connect</h3>
               <div className="social-links">
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <a href="https://www.facebook.com/pickleball.courts.renify" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                   <FaFacebookF />
                 </a>
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
