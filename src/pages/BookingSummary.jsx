@@ -16,88 +16,35 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 export const BookingSummary = () => {
-  const { courtId, date, times } = useParams();
+  // Parse URL parameters
   const navigate = useNavigate();
+  const { courtId, date, times } = useParams();
+  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.BOOKING);
+
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [courtData, setCourtData] = useState(null);
+  const [courtOwner, setCourtOwner] = useState({ paymentMethods: [] });
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPaymentUploaded, setIsPaymentUploaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [paymentProof, setPaymentProof] = useState(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(0);
+  const [userData, setUserData] = useState(null);
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  const bookingDate = date ? parseISO(date) : new Date();
+  const selectedTimes = times ? times.split(',') : [];
+  const totalPrice = courtData ? (courtData.price * selectedTimes.length).toFixed(2) : '0.00';
+  const currencySymbol = 'Php';
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     notes: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [userData, setUserData] = useState(null);
-  const [courtData, setCourtData] = useState(null);
-  const [courtOwner, setCourtOwner] = useState({ paymentMethods: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(0);
-  const [paymentProof, setPaymentProof] = useState(null);
-  const [paymentProofPreview, setPaymentProofPreview] = useState(null);
-  const [isPaymentUploaded, setIsPaymentUploaded] = useState(false);
-  const [zoomedImage, setZoomedImage] = useState(null);
-  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.BOOKING);
-  
-
-  // Parse URL parameters
-  const bookingDate = date ? parseISO(date) : new Date();
-  const selectedTimes = times ? times.split(',') : [];
-  const totalPrice = courtData ? (courtData.price * selectedTimes.length).toFixed(2) : '0.00';
-  const currencySymbol = 'Php';
-
-  // Fetch court data
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!courtId) {
-        setError('Error: No court ID provided in URL');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const courtRef = doc(db, 'courts', courtId);
-        const courtDoc = await getDoc(courtRef);
-
-        if (courtDoc.exists()) {
-          const courtData = {
-            id: courtDoc.id,
-            ...courtDoc.data()
-          };
-
-          setCourtData(courtData);
-
-          // Fetch court owner's information if userId exists
-          if (courtData.userId) {
-            try {
-              const userRef = doc(db, 'users', courtData.userId);
-              const userDoc = await getDoc(userRef);
-
-              if (userDoc.exists()) {
-                setCourtOwner(prev => ({
-                  ...prev,
-                  ...userDoc.data(),
-                  paymentMethods: userDoc.data().paymentMethods || []
-                }));
-              }
-            } catch (err) {
-              console.error('Error fetching court owner data:', err);
-            }
-          }
-
-          setError(null);
-        } else {
-          setError(`No court found with ID: ${courtId}`);
-        }
-      } catch (error) {
-        setError(`Error loading court data: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [courtId]);
 
   // Format time slots for display
   const formatTimeSlots = () => {
@@ -262,6 +209,61 @@ export const BookingSummary = () => {
       setIsLoading(false);
     }
   }, [selectedPaymentMethod, paymentProof, isPaymentUploaded, recaptchaToken, formData, selectedTimes, courtData, courtOwner, bookingDate, navigate, resetRecaptcha]);
+
+
+  // Fetch court data
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!courtId) {
+        setError('Error: No court ID provided in URL');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const courtRef = doc(db, 'courts', courtId);
+        const courtDoc = await getDoc(courtRef);
+
+        if (courtDoc.exists()) {
+          const courtData = {
+            id: courtDoc.id,
+            ...courtDoc.data()
+          };
+
+          setCourtData(courtData);
+
+          // Fetch court owner's information if userId exists
+          if (courtData.userId) {
+            try {
+              const userRef = doc(db, 'users', courtData.userId);
+              const userDoc = await getDoc(userRef);
+
+              if (userDoc.exists()) {
+                setCourtOwner(prev => ({
+                  ...prev,
+                  ...userDoc.data(),
+                  paymentMethods: userDoc.data().paymentMethods || []
+                }));
+              }
+            } catch (err) {
+              console.error('Error fetching court owner data:', err);
+            }
+          }
+
+          setError(null);
+        } else {
+          setError(`No court found with ID: ${courtId}`);
+        }
+      } catch (error) {
+        setError(`Error loading court data: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [courtId]);
 
   if (loading) {
     return (

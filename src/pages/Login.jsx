@@ -6,21 +6,14 @@ import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
 import '../styles/pages/auth.scss';
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      const from = location.state?.from?.pathname || '/';
-      navigate(from, { replace: true });
-    }
-  }, [user, navigate, location]);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [password, setPassword] = useState('');
 
   const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.LOGIN);
 
@@ -52,6 +45,14 @@ export const Login = () => {
       setIsLoading(false);
     }
   };
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location]);
 
   return (
     <div className="auth-container">

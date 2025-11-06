@@ -15,11 +15,23 @@ export const Admin = () => {
   const navigate = useNavigate();
   
   // State for courts and bookings
-  const [courts, setCourts] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [courts, setCourts] = useState([]);
+  const [courtsMap, setCourtsMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [imagePreview, setImagePreview] = useState('');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [newPaymentMethod, setNewPaymentMethod] = useState({ name: '', image: null });
+  const [paymentImages, setPaymentImages] = useState([]);
+  const [paymentImagePreviews, setPaymentImagePreviews] = useState([]);
+  const [profileImage, setProfileImage] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showCourtForm, setShowCourtForm] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [zoomedPaymentImage, setZoomedPaymentImage] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   const [courtForm, setCourtForm] = useState({ 
     id: null, 
@@ -43,7 +55,7 @@ export const Admin = () => {
     imagePreview: null,
     userId: ''
   });
-  const [showCourtForm, setShowCourtForm] = useState(false);
+
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: '',
@@ -61,15 +73,6 @@ export const Admin = () => {
     photoURL: '',
     paymentMethods: []
   });
-  const [profileImage, setProfileImage] = useState(null);
-  const [newPaymentMethod, setNewPaymentMethod] = useState({ name: '', image: null });
-  const [paymentImages, setPaymentImages] = useState([]);
-  const [paymentImagePreviews, setPaymentImagePreviews] = useState([]);
-  const [zoomedPaymentImage, setZoomedPaymentImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const fileInputRef = useRef(null);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -408,88 +411,6 @@ export const Admin = () => {
       setIsUpdating(false);
     }
   };
-
-  // Create a map for court lookups
-  const [courtsMap, setCourtsMap] = useState({});
-  
-  // Fetch courts data from Firestore
-  useEffect(() => {
-    if (!user) return;
-    
-    // Subscribe to courts collection
-    const courtsQuery = query(
-      collection(db, 'courts'),
-      where('userId', '==', user.uid)
-    );
-    
-    const unsubscribeCourts = onSnapshot(courtsQuery, (snapshot) => {
-      const courtsData = [];
-      const newCourtsMap = {};
-      
-      snapshot.forEach((doc) => {
-        const courtData = { id: doc.id, ...doc.data() };
-        newCourtsMap[doc.id] = courtData.name;
-        courtsData.push(courtData);
-      });
-      
-      setCourts(courtsData);
-      setCourtsMap(newCourtsMap); // Update the courts map
-      setLoading(false);
-    });
-    
-    return () => unsubscribeCourts();
-  }, [user]);
-  
-  // Fetch bookings data after courts are loaded
-  useEffect(() => {
-    if (Object.keys(courtsMap).length === 0) return;
-    
-    const bookingsQuery = query(collection(db, 'bookings'));
-    
-    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
-      const bookingsData = snapshot.docs.map((doc) => {
-        const bookingData = doc.data();
-        const courtId = bookingData.courtId;
-        const courtName = courtId ? (courtsMap[courtId] || 'Unknown Court') : 'Unknown Court';
-        
-        // Format the date for display
-        const bookingDate = bookingData.date?.toDate ? bookingData.date.toDate() : new Date(bookingData.date);
-        const formattedDate = format(bookingDate, 'MMM d, yyyy');
-        
-        // Format the time slots
-        let formattedTimes = '';
-        if (Array.isArray(bookingData.times)) {
-          formattedTimes = bookingData.times.join(', ');
-        } else if (bookingData.time) {
-          formattedTimes = bookingData.time;
-        }
-        
-        return {
-          id: doc.id,
-          ...bookingData,
-          courtName,
-          formattedDate,
-          formattedTimes,
-          date: bookingData.date,
-          totalPrice: bookingData.totalPrice || 0
-        };
-      });
-      
-      setBookings(bookingsData);
-    });
-    
-    return () => unsubscribeBookings();
-  }, [courtsMap]); // This effect depends on courtsMap
-  
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login');
-    } else if (user) {
-      // Fetch user profile when component mounts and user is available
-      fetchUserProfile(user.uid);
-    }
-  }, [user, loading, navigate]);
 
   const handleCourtSubmit = async (e) => {
     e.preventDefault();
@@ -840,6 +761,86 @@ export const Admin = () => {
     plan: 'Premium',
     courts: courts.map(court => court.name).slice(0, 3) // Show first 3 court names
   };
+
+
+  // Fetch courts data from Firestore
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to courts collection
+    const courtsQuery = query(
+      collection(db, 'courts'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribeCourts = onSnapshot(courtsQuery, (snapshot) => {
+      const courtsData = [];
+      const newCourtsMap = {};
+
+      snapshot.forEach((doc) => {
+        const courtData = { id: doc.id, ...doc.data() };
+        newCourtsMap[doc.id] = courtData.name;
+        courtsData.push(courtData);
+      });
+
+      setCourts(courtsData);
+      setCourtsMap(newCourtsMap); // Update the courts map
+      setLoading(false);
+    });
+
+    return () => unsubscribeCourts();
+  }, [user]);
+
+  // Fetch bookings data after courts are loaded
+  useEffect(() => {
+    if (Object.keys(courtsMap).length === 0) return;
+
+    const bookingsQuery = query(collection(db, 'bookings'));
+
+    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
+      const bookingsData = snapshot.docs.map((doc) => {
+        const bookingData = doc.data();
+        const courtId = bookingData.courtId;
+        const courtName = courtId ? (courtsMap[courtId] || 'Unknown Court') : 'Unknown Court';
+
+        // Format the date for display
+        const bookingDate = bookingData.date?.toDate ? bookingData.date.toDate() : new Date(bookingData.date);
+        const formattedDate = format(bookingDate, 'MMM d, yyyy');
+
+        // Format the time slots
+        let formattedTimes = '';
+        if (Array.isArray(bookingData.times)) {
+          formattedTimes = bookingData.times.join(', ');
+        } else if (bookingData.time) {
+          formattedTimes = bookingData.time;
+        }
+
+        return {
+          id: doc.id,
+          ...bookingData,
+          courtName,
+          formattedDate,
+          formattedTimes,
+          date: bookingData.date,
+          totalPrice: bookingData.totalPrice || 0
+        };
+      });
+
+      setBookings(bookingsData);
+    });
+
+    return () => unsubscribeBookings();
+  }, [courtsMap]); // This effect depends on courtsMap
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    } else if (user) {
+      // Fetch user profile when component mounts and user is available
+      fetchUserProfile(user.uid);
+    }
+  }, [user, loading, navigate]);
 
   return (
     <div className="admin-page">

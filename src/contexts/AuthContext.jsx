@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }) => {
               role: user.role,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-              status: 1 // Active by default
+              status: 0 // Active by default
             });
             userRole = user.role;
           }
@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }) => {
         name: firebaseUser.displayName || 'User',
         photoURL: firebaseUser.photoURL,
         role: 'user',
-        status: 1, // Mark as active for social login
+        status: 0, // Mark as active for social login
         emailVerified: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -198,7 +198,7 @@ export const AuthProvider = ({ children }) => {
         email: firebaseUser.email,
         name: firebaseUser.displayName || 'User',
         role: 'user',
-        status: 1
+        status: 0
       };
       
       setUser(userState);
@@ -230,7 +230,7 @@ export const AuthProvider = ({ children }) => {
         name: firebaseUser.displayName || 'User',
         photoURL: firebaseUser.photoURL,
         role: 'user',
-        status: 1, // Mark as active for social login
+        status: 0, // Mark as active for social login
         emailVerified: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }) => {
         email: firebaseUser.email,
         name: firebaseUser.displayName || 'User',
         role: 'user',
-        status: 1
+        status: 0
       };
       
       setUser(userState);

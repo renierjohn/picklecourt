@@ -16,199 +16,25 @@ const db = getFirestore(app);
 export const Courts = () => {
   const navigate = useNavigate();
   const { userId } = useParams();
+
+  // Generate dates for the next 2 months (current month + next month)
+  const today = new Date();
+  const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Last day of next month
+  const days = [];
+
+  // Add all dates from today to end of next month
+  for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  const [bookings, setBookings] = useState([]);
+  const [courts, setCourts] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
-  const [courts, setCourts] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [userPhoto, setUserPhoto] = useState(null);
-
-  // Fetch courts data from Firestore
-  useEffect(() => {
-    if (!bookings) return;
-    
-    // Subscribe to courts collection
-    const bookingQuery = query(
-      collection(db, 'bookings'),
-      where('courtId', '==', selectedCourt),
-      where('status', '==', 'confirmed')
-    );
-    
-    const unsubscribeBookings = onSnapshot(bookingQuery, (snapshot) => {
-      const bookingsData = [];
-      
-      snapshot.forEach((doc) => {
-        const bookingsDoc = { id: doc.id, ...doc.data() };
-        bookingsData.push(bookingsDoc);
-      });
-      setBookings(bookingsData);
-    });
-    
-    return () => unsubscribeBookings();
-  }, [selectedCourt]);
-  
-  // Fetch user ID by profile_id and then fetch their courts
-  useEffect(() => {    
-    const fetchUserAndCourts = async () => {
-      try {
-        setLoading(true);
-        
-        // First, find the user with the matching profile_id
-        const usersRef = collection(db, 'users');
-        const userQuery = query(usersRef, where('profile_id', '==', userId));
-        const userSnapshot = await getDocs(userQuery);
-        
-        if (userSnapshot.empty) {
-          throw new Error('No user found with this profile ID');
-        }
-        
-        // Get the user document
-        const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data();
-        setUserPhoto(userData.photoURL || null);
-        const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
-        
-        // Now fetch courts for this user
-        const courtsRef = collection(db, 'courts');
-        const q = query(courtsRef, where('userId', '==', actualUserId));
-        const querySnapshot = await getDocs(q);
-        
-        const courtsList = [];
-        querySnapshot.forEach((doc) => {
-          const courtData = { id: doc.id, ...doc.data() };
-          courtsList.push(courtData);
-        });
- 
-        setCourts(courtsList);
-        
-        // Set the first court as selected if available
-        if (courtsList.length > 0) {
-          setSelectedCourt(courtsList[0].id);
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load courts. Please try again later.');
-        setLoading(false);
-      }
-    };
-
-    if (userId) {
-      fetchUserAndCourts();
-    } else {
-      setError('No user specified. Please check the URL.');
-      setLoading(false);
-    }
-  }, [userId]);
-
-  // Update error handling in the error state UI
-  if (error) {
-    return (
-      <div className="home">
-        <HeroBanner backgroundImage={userPhoto} />
-        <div className="container">
-          <div className="error">
-            <h3>Error Loading Courts</h3>
-            <p>{error}</p>
-            <button 
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="loading-container" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '50vh',
-        textAlign: 'center',
-        padding: '2rem'
-      }}>
-        <div style={{
-          width: '120px',
-          height: '120px',
-          borderRadius: '50%',
-          backgroundColor: '#f0f2f5',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '1.5rem',
-          overflow: 'hidden',
-          border: '3px solid #e9ecef',
-          position: 'relative'
-        }}>
-          <div className="profile-image-loader" style={{
-            width: '100%',
-            height: '100%',
-            background: 'linear-gradient(90deg, #f0f2f5 25%, #e9ecef 50%, #f0f2f5 75%)',
-            backgroundSize: '200% 100%',
-            animation: 'shimmer 1.5s infinite',
-            borderRadius: '50%'
-          }} />
-        </div>
-        <h3 style={{
-          margin: '1rem 0 0.5rem',
-          color: '#333',
-          fontWeight: '600'
-        }}>Loading Courts</h3>
-        <p style={{
-          color: '#666',
-          margin: '0',
-          fontSize: '0.95rem'
-        }}>Please wait while we load the available courts...</p>
-        <style>{
-          `@keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-          }`
-        }</style>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="home">
-        <HeroBanner backgroundImage={userPhoto} />
-        <div className="container">
-          <div className="error">
-            <h3>Error Loading Courts</h3>
-            <p>{error}</p>
-            <button 
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (courts.length === 0) {
-    return (
-      <div className="home">
-        <HeroBanner backgroundImage={userPhoto} />
-        <div className="container">
-          <div className="no-courts">
-            <p>No courts found for this user.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Check if a time slot is during lunch break (12:00 - 13:00)
   const isLunchBreak = (time24) => {
@@ -373,14 +199,170 @@ export const Courts = () => {
       end: slot.end
     };
   });
-  // Generate dates for the next 2 months (current month + next month)
-  const today = new Date();
-  const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Last day of next month
-  const days = [];
-  
-  // Add all dates from today to end of next month
-  for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
-    days.push(new Date(d));
+
+  // Fetch courts data from Firestore
+  useEffect(() => {
+    if (!bookings) return;
+
+    // Subscribe to courts collection
+    const bookingQuery = query(
+      collection(db, 'bookings'),
+      where('courtId', '==', selectedCourt),
+      where('status', '==', 'confirmed')
+    );
+
+    const unsubscribeBookings = onSnapshot(bookingQuery, (snapshot) => {
+      const bookingsData = [];
+
+      snapshot.forEach((doc) => {
+        const bookingsDoc = { id: doc.id, ...doc.data() };
+        bookingsData.push(bookingsDoc);
+      });
+      setBookings(bookingsData);
+    });
+
+    return () => unsubscribeBookings();
+  }, [selectedCourt]);
+
+  // Fetch user ID by profile_id and then fetch their courts
+  useEffect(() => {
+    const fetchUserAndCourts = async () => {
+      try {
+        setLoading(true);
+
+        // First, find the user with the matching profile_id
+        const usersRef = collection(db, 'users');
+        const userQuery = query(usersRef, where('profile_id', '==', userId));
+        const userSnapshot = await getDocs(userQuery);
+
+        if (userSnapshot.empty) {
+          throw new Error('No user found with this profile ID');
+        }
+
+        // Get the user document
+        const userDoc = userSnapshot.docs[0];
+        const userData = userDoc.data();
+        setUserPhoto(userData.photoURL || null);
+        const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
+
+        // Now fetch courts for this user
+        const courtsRef = collection(db, 'courts');
+        const q = query(courtsRef, where('userId', '==', actualUserId));
+        const querySnapshot = await getDocs(q);
+
+        const courtsList = [];
+        querySnapshot.forEach((doc) => {
+          const courtData = { id: doc.id, ...doc.data() };
+          courtsList.push(courtData);
+        });
+
+        setCourts(courtsList);
+
+        // Set the first court as selected if available
+        if (courtsList.length > 0) {
+          setSelectedCourt(courtsList[0].id);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to load courts. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchUserAndCourts();
+    } else {
+      setError('No user specified. Please check the URL.');
+      setLoading(false);
+    }
+  }, [userId]);
+
+
+  if (loading) {
+    return (
+      <div className="loading-container" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '50vh',
+        textAlign: 'center',
+        padding: '2rem'
+      }}>
+        <div style={{
+          width: '120px',
+          height: '120px',
+          borderRadius: '50%',
+          backgroundColor: '#f0f2f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '1.5rem',
+          overflow: 'hidden',
+          border: '3px solid #e9ecef',
+          position: 'relative'
+        }}>
+          <div className="profile-image-loader" style={{
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, #f0f2f5 25%, #e9ecef 50%, #f0f2f5 75%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1.5s infinite',
+            borderRadius: '50%'
+          }} />
+        </div>
+        <h3 style={{
+          margin: '1rem 0 0.5rem',
+          color: '#333',
+          fontWeight: '600'
+        }}>Loading Courts</h3>
+        <p style={{
+          color: '#666',
+          margin: '0',
+          fontSize: '0.95rem'
+        }}>Please wait while we load the available courts...</p>
+        <style>{
+          `@keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }`
+        }</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="home">
+        <HeroBanner backgroundImage={userPhoto} />
+        <div className="container">
+          <div className="error">
+            <h3>Error Loading Courts</h3>
+            <p>{error}</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (courts.length === 0) {
+    return (
+      <div className="home">
+        <HeroBanner backgroundImage={userPhoto} />
+        <div className="container">
+          <div className="no-courts">
+            <p>No courts found for this user.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -7,29 +7,18 @@ import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import '../styles/pages/auth.scss';
 
 export const Register = () => {
-  const { user, register, signInWithGoogle, signInWithFacebook, error: authError, setError: setAuthError } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Set auth errors in component state
-  useEffect(() => {
-    if (authError) {
-      setError(authError);
-    }
-  }, [authError]);
+  const { user, register, signInWithGoogle, signInWithFacebook, error: authError, setError: setAuthError } = useAuth();
+  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.REGISTER);
 
-  // Clear error when component unmounts
-  useEffect(() => {
-    return () => {
-      setAuthError('');
-    };
-  }, [setAuthError]);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleGoogleSignIn = async (e) => {
     e.preventDefault();
@@ -54,16 +43,6 @@ export const Register = () => {
       setError(result.error);
     }
   };
-
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      const from = location.state?.from?.pathname || '/';
-      navigate(from, { replace: true });
-    }
-  }, [user, navigate, location]);
-
-  const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.REGISTER);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -103,6 +82,28 @@ export const Register = () => {
       setIsLoading(false);
     }
   };
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location]);
+
+  // Set auth errors in component state
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+
+  // Clear error when component unmounts
+  useEffect(() => {
+    return () => {
+      setAuthError('');
+    };
+  }, [setAuthError]);
 
   return (
     <div className="auth-container">
