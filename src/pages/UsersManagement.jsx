@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, doc, getDocs, updateDoc, addDoc, query, where, getFirestore, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, addDoc, deleteDoc, query, where, getFirestore, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { FaUser, FaCamera, FaSave, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaUser, FaCamera, FaSave, FaTimes, FaPlus, FaEye, FaCalendarAlt, FaTrash } from 'react-icons/fa';
 import '../styles/pages/users-management.scss';
 
 const UsersManagement = () => {
@@ -18,10 +18,42 @@ const UsersManagement = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('user');
   const [location, setLocation] = useState('');
+  const [subscriptionType, setSubscriptionType] = useState('free');
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef(null);
+  
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  const handleDateSelect = (daysToAdd) => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysToAdd);
+    setSubscriptionExpiry(date.toISOString().split('T')[0]);
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No expiry';
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
   const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [viewingUser, setViewingUser] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const fileInputRef = useRef(null);
-  const { user } = useAuth(); // Changed from currentUser to user to match AuthContext
+  const { user } = useAuth();
   const navigate = useNavigate();
   const db = getFirestore();
   const storage = getStorage();
@@ -43,6 +75,39 @@ const UsersManagement = () => {
 
     fetchUsers();
   }, [user, navigate]);
+
+  // Sort users based on sortConfig
+  const sortUsers = (users) => {
+    if (!sortConfig.key) return users;
+    
+    return [...users].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      
+      // Handle dates
+      if (sortConfig.key === 'subscriptionExpiry') {
+        aValue = aValue ? new Date(aValue).getTime() : Number.MAX_SAFE_INTEGER;
+        bValue = bValue ? new Date(bValue).getTime() : Number.MAX_SAFE_INTEGER;
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+  
+  // Handle column sorting
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const fetchUsers = async () => {
     try {
@@ -105,10 +170,36 @@ const UsersManagement = () => {
     }
   };
 
+  const handleDeleteUser = async (userId, email) => {
+    if (!window.confirm(`Are you sure you want to delete the user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'users', userId));
+      
+      // Update local state
+      setUsers(users.filter(user => user.id !== userId));
+      
+      // If the deleted user is the one being edited/viewed, reset the form
+      if (editingUser && editingUser.id === userId) {
+        cancelEdit();
+      }
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setError('Failed to delete user');
+    }
+  };
+
   const handleEditUser = (user) => {
     setEditingUser(user);
     setName(user.name || '');
+    setEmail(user.email || '');
+    setRole(user.role || 'user');
     setLocation(user.location || '');
+    setSubscriptionType(user.subscriptionType || 'free');
+    setSubscriptionExpiry(user.subscriptionExpiry || '');
     setImagePreview(user.photoURL || '');
   };
 
@@ -133,6 +224,9 @@ const UsersManagement = () => {
       const updates = {
         name: name.trim(),
         location: location.trim(),
+        role: role,
+        subscriptionType: subscriptionType,
+        subscriptionExpiry: subscriptionExpiry,
         updatedAt: serverTimestamp()
       };
 
@@ -175,6 +269,15 @@ const UsersManagement = () => {
     setPassword('');
     setRole('user');
     setLocation('');
+    setSubscriptionType('free');
+    setSubscriptionExpiry('');
+    setViewingUser(null);
+    setShowViewModal(false);
+  };
+
+  const handleViewUser = (user) => {
+    setViewingUser(user);
+    setShowViewModal(true);
   };
 
   const handleAddUser = async (e) => {
@@ -337,6 +440,67 @@ const UsersManagement = () => {
         </div>
       )}
       
+      {showViewModal && viewingUser && (
+        <div className="user-details-modal">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>User Details</h3>
+              <button className="close-btn" onClick={() => setShowViewModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="user-details">
+                <div className="user-avatar">
+                  {viewingUser.photoURL ? (
+                    <img src={viewingUser.photoURL} alt={viewingUser.name || 'User'} />
+                  ) : (
+                    <div className="empty-avatar">
+                      <FaUser />
+                    </div>
+                  )}
+                </div>
+                <div className="user-info">
+                  <div className="info-row">
+                    <span className="label">Name:</span>
+                    <span className="value">{viewingUser.name || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Email:</span>
+                    <span className="value">{viewingUser.email || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Role:</span>
+                    <span className="value">{viewingUser.role || 'user'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Location:</span>
+                    <span className="value">{viewingUser.location || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Status:</span>
+                    <span className={`status-badge ${viewingUser.status === 1 ? 'active' : 'inactive'}`}>
+                      {viewingUser.status === 1 ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  {viewingUser.createdAt && (
+                    <div className="info-row">
+                      <span className="label">Member Since:</span>
+                      <span className="value">
+                        {new Date(viewingUser.createdAt.seconds * 1000).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingUser && (
         <div className="user-profile-edit">
           <h2>Edit User Profile</h2>
@@ -385,6 +549,67 @@ const UsersManagement = () => {
               />
             </div>
             
+            <div className="form-group">
+              <label>Subscription Type</label>
+              <select
+                value={subscriptionType}
+                onChange={(e) => setSubscriptionType(e.target.value)}
+                className="form-control"
+              >
+                <option value="free">Free</option>
+                <option value="basic">Basic</option>
+                <option value="premium">Premium</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            
+            <div className="form-group" ref={datePickerRef}>
+              <label>Subscription Expiry</label>
+              <div className="date-input-container">
+                <div className="date-input" onClick={() => setShowDatePicker(!showDatePicker)}>
+                  <FaCalendarAlt className="calendar-icon" />
+                  <input
+                    type="text"
+                    value={subscriptionExpiry ? formatDate(subscriptionExpiry) : ''}
+                    readOnly
+                    className="form-control"
+                    placeholder="Select expiry date"
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-outline-secondary date-clear"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSubscriptionExpiry('');
+                  }}
+                  title="Clear date"
+                >
+                  ×
+                </button>
+                {showDatePicker && (
+                  <div className="date-picker">
+                    <div className="quick-options">
+                      <button type="button" onClick={() => handleDateSelect(7)}>1 Week</button>
+                      <button type="button" onClick={() => handleDateSelect(30)}>1 Month</button>
+                      <button type="button" onClick={() => handleDateSelect(90)}>3 Months</button>
+                      <button type="button" onClick={() => handleDateSelect(365)}>1 Year</button>
+                    </div>
+                    <div className="date-input-wrapper">
+                      <input
+                        type="date"
+                        value={subscriptionExpiry}
+                        onChange={(e) => setSubscriptionExpiry(e.target.value)}
+                        className="form-control"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            
             <div className="form-actions">
               <button type="button" className="btn btn-secondary" onClick={cancelEdit}>
                 <FaTimes /> Cancel
@@ -403,16 +628,32 @@ const UsersManagement = () => {
             <tr>
               <th>Email</th>
               <th>Name</th>
+              <th>Subscription</th>
+              <th 
+                className="sortable" 
+                onClick={() => handleSort('subscriptionExpiry')}
+              >
+                Expires
+                {sortConfig.key === 'subscriptionExpiry' && (
+                  <span className="sort-icon">
+                    {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
+                  </span>
+                )}
+              </th>
+              <th>Revenue</th>
               <th>Role</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(user => (
+            {sortUsers(users).map(user => (
               <tr key={user.id}>
                 <td>{user.email}</td>
                 <td>{user.name || 'N/A'}</td>
+                <td>{user.subscriptionType || 'free'}</td>
+                <td>{user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : 'N/A'}</td>
+                <td>PHP {user.revenue ? parseFloat(user.revenue).toFixed(2) : '0.00'}</td>
                 <td>
                   <select 
                     value={user.role || 'user'} 
@@ -438,17 +679,25 @@ const UsersManagement = () => {
                 <td>
                   <div className="user-actions">
                     <button 
-                      className="btn btn-sm btn-edit"
-                      onClick={() => handleEditUser(user)}
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleViewUser(user)}
+                      title="View User Details"
                     >
-                      Edit Profile
+                      View
                     </button>
                     <button 
-                      className="btn btn-sm"
-                      onClick={() => handleRoleChange(user.id, user.role === 'admin' ? 'user' : 'admin')}
-                      disabled={user.id === user?.uid}
+                      className="btn btn-sm btn-edit"
+                      onClick={() => handleEditUser(user)}
+                      title="Edit User"
                     >
-                      {user.role === 'admin' ? 'Make User' : 'Make Admin'}
+                      Edit
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handleDeleteUser(user.id, user.email)}
+                      title="Delete User"
+                    >
+                      <FaTrash />
                     </button>
                   </div>
                 </td>

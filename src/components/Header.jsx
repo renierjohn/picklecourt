@@ -60,7 +60,7 @@ export const Header = () => {
           <nav className={`nav ${isMenuOpen ? 'active' : ''}`}>
             <div className="nav-links">
               <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
-              {user?.role === 'admin' && (
+              {user?.role === 'admin' || user?.role === 'manager' && (
                 <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
               )}
               {user?.email === 'renify.official@gmail.com' && (

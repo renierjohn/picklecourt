@@ -26,6 +26,7 @@ export const Admin = () => {
   const [paymentImages, setPaymentImages] = useState([]);
   const [paymentImagePreviews, setPaymentImagePreviews] = useState([]);
   const [profileImage, setProfileImage] = useState(null);
+  const [revenue, setRevenue] = useState(0);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showCourtForm, setShowCourtForm] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -235,9 +236,13 @@ export const Admin = () => {
           paymentMethods: userData.paymentMethods ? userData.paymentMethods.map(method => ({
             name: method.name,
             image: method.image
-          })) : []
+          })) : [],
+          subscriptionType: userData.subscriptionType.toUpperCase() || 'N/A',
+          subscriptionExpiry: userData.subscriptionExpiry || 'N/A',
         });
         setImagePreview(userData.photoURL || '');
+        setRevenue(userData.revenue || 0);
+console.log(userData);        
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -632,35 +637,73 @@ export const Admin = () => {
   const handleConfirmBooking = async (bookingId) => {
     try {
       const bookingRef = doc(db, 'bookings', bookingId);
+      const bookingDoc = await getDoc(bookingRef);
+      const bookingData = bookingDoc.data();
+      
+      if (!bookingData) {
+        throw new Error('Booking not found');
+      }
+
+      // Update booking status
       await updateDoc(bookingRef, {
         status: 'confirmed',
         updatedAt: new Date().toISOString()
       });
+
+      // Update user's revenue if this is a new confirmation
+      if (bookingData.status !== 'confirmed') {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          // const userData = userProfile;
+          const currentRevenue = parseFloat(revenue || 0);
+          const bookingAmount = parseFloat(bookingData.totalPrice || 0);
+      
+          await updateDoc(userRef, {
+            revenue: currentRevenue + bookingAmount,
+            updatedAt: new Date().toISOString()
+          });
+
+          setRevenue(currentRevenue + bookingAmount);
+        }
+      }
       
       setModalConfig({
         isOpen: true,
         title: 'Success',
-        message: 'Booking has been confirmed successfully!',
+        message: 'Booking has been confirmed successfully and revenue has been updated!',
         confirmText: 'Close',
         onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
         onCancel: () => {
-          setModalConfig(prev => ({ ...prev, isOpen: false }))
-          const bookingRef = doc(db, 'bookings', bookingId);
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
           updateDoc(bookingRef, {
             status: 'pending',
             updatedAt: new Date().toISOString()
           });
+
+          const userRef = doc(db, 'users', user.uid);
+          const currentRevenue = parseFloat(revenue || 0);
+          
+          updateDoc(userRef, {
+            revenue: currentRevenue,
+            updatedAt: new Date().toISOString()
+          });
+          setRevenue(currentRevenue);
         }
       });
       
       // Close the booking details modal if open
       setSelectedBooking(null);
+      
+      // Refresh bookings to show updated status
+      // fetchBookings();
     } catch (error) {
       console.error('Error confirming booking:', error);
       setModalConfig({
         isOpen: true,
         title: 'Error',
-        message: 'Failed to confirm booking. Please try again.',
+        message: error.message || 'Failed to confirm booking. Please try again.',
         confirmText: 'OK',
         danger: true
       });
@@ -1106,22 +1149,26 @@ export const Admin = () => {
           <div className="subscription-card">
             <div className="subscription-header">
               <h2>Subscription Status</h2>
-              <span className={`status-badge ${subscriptionData.status.toLowerCase()}`}>
-                {subscriptionData.status}
+              <span className={`status-badge ${userProfile.subscriptionType ? userProfile.subscriptionType.toLowerCase() : 'inactive'}`}>
+                {userProfile.subscriptionType || 'No Subscription'}
               </span>
             </div>
             <div className="subscription-details">
               <div className="detail">
                 <span className="label">Plan:</span>
-                <span className="value">{subscriptionData.plan}</span>
+                <span className="value">{userProfile.subscriptionType || 'N/A'}</span>
               </div>
               <div className="detail">
                 <span className="label">Due Date:</span>
-                <span className="value">{format(subscriptionData.dueDate, 'MMM d, yyyy')}</span>
-              </div>
-              <div className="detail">
-                <span className="label">Included Courts:</span>
-                <span className="value">{subscriptionData.courts.join(', ')}</span>
+                <span className="value">
+                  {userProfile.subscriptionExpiry 
+                    ? new Date(userProfile.subscriptionExpiry).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })
+                    : 'No expiry date'}
+                </span>
               </div>
             </div>
           </div>
@@ -1155,13 +1202,7 @@ export const Admin = () => {
           <div className="stat-card">
             <h3>Revenue</h3>
             <p className="stat-number">
-              Php {bookings
-                .filter(booking => 
-                  booking.status === 'confirmed' && 
-                  managedCourtIds.includes(booking.courtId)
-                )
-                .reduce((sum, booking) => sum + (parseFloat(booking.amount) || 0), 0)
-                .toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Php { revenue || 0}
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { FaFacebookF, FaTwitter, FaInstagram } from 'react-icons/fa';
+import { FaFacebookF, FaTwitter, FaInstagram, FaEnvelope } from 'react-icons/fa';
 import '../styles/components/footer.scss';
 
 export const Footer = () => {
@@ -34,6 +34,10 @@ export const Footer = () => {
                 </a>
                 <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                   <FaInstagram />
+                </a>
+                <a href="mailto:renify.official@gmail.com" aria-label="Email us">
+                  <FaEnvelope />
+                  <span className="email-text">renify.official@gmail.com</span>
                 </a>
               </div>
             </div>

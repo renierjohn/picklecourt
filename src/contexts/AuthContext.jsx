@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
       };
       
       // Redirect based on role
-      if (userRole === 'admin') {
+      if (userRole === 'admin' || userRole === 'manager') {
         window.location.href = '/admin';
       }
       
