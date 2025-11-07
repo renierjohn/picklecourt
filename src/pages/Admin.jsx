@@ -231,13 +231,13 @@ export const Admin = () => {
           name: userData.name || '',
           email: userData.email || user.email || '',
           location: userData.location || '',
-          photoURL: import.meta.env.VITE_BUCKET_URL + userData.photoURL || '',
+          photoURL: userData.photoURL || '',
           paymentMethods: userData.paymentMethods ? userData.paymentMethods.map(method => ({
             name: method.name,
             image: method.image
           })) : []
         });
-        setImagePreview(import.meta.env.VITE_BUCKET_URL + userData.photoURL || '');
+        setImagePreview(userData.photoURL || '');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);

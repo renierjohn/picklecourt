@@ -90,18 +90,22 @@ export const BookingSummary = () => {
   const uploadPaymentProof = async (file) => {
     try {
       if (!file) return null;
+      const formData = new FormData();
+      formData.append('image', file);
 
-      // Create a unique filename for the payment proof
-      const fileExt = file.name.split('.').pop();
-      const fileName = `payment_proofs/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const storageRef = ref(storage, fileName);
+      const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
 
-      // Upload the file
-      const snapshot = await uploadBytes(storageRef, file);
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
 
-      // Get the download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      const { url } = await response.json();
+      const imageUrl = import.meta.env.VITE_BUCKET_URL + url;
+      return imageUrl;
+
     } catch (error) {
       console.error('Error uploading payment proof:', error);
       throw new Error('Failed to upload payment proof. Please try again.');
