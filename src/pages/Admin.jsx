@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
@@ -231,10 +231,13 @@ export const Admin = () => {
           name: userData.name || '',
           email: userData.email || user.email || '',
           location: userData.location || '',
-          photoURL: userData.photoURL || '',
-          paymentMethods: userData.paymentMethods || []      
+          photoURL: import.meta.env.VITE_BUCKET_URL + userData.photoURL || '',
+          paymentMethods: userData.paymentMethods ? userData.paymentMethods.map(method => ({
+            name: method.name,
+            image: method.image
+          })) : []
         });
-        setImagePreview(userData.photoURL || '');
+        setImagePreview(import.meta.env.VITE_BUCKET_URL + userData.photoURL || '');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -283,7 +286,7 @@ export const Admin = () => {
     if (newPaymentMethod.name && paymentImages[0]) {
       const newMethod = {
         name: newPaymentMethod.name,
-        image: null, // Will be updated with the URL after upload
+        image: newPaymentMethod.image, // Will be updated with the URL after upload
         imageFile: paymentImages[0] // Store the file for upload when saving
       };
       
@@ -358,29 +361,47 @@ export const Admin = () => {
 
       // Upload new profile image if selected
       if (profileImage) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `profile_images/${user.uid}_${Date.now()}`);
-        await uploadBytes(storageRef, profileImage);
-        const downloadURL = await getDownloadURL(storageRef);
-        updates.photoURL = downloadURL;
-        setImagePreview(downloadURL);
+        const formData = new FormData();
+        formData.append('image', profileImage);
+
+        const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+        const { url } = await response.json();
+        updates.photoURL = import.meta.env.VITE_BUCKET_URL + url;
+        setImagePreview(import.meta.env.VITE_BUCKET_URL + url);
       }
 
       // Process payment methods
       const updatedPaymentMethods = [];
-      const storage = getStorage();
+      // const storage = getStorage();
       
       // Process existing and new payment methods
       for (const method of userProfile.paymentMethods) {
         // If it's a new method with a file to upload
         if (method.imageFile) {
-          const storageRef = ref(storage, `payment_methods/${user.uid}/${Date.now()}_${method.name.replace(/\s+/g, '_')}`);
-          await uploadBytes(storageRef, method.imageFile);
-          const downloadURL = await getDownloadURL(storageRef);
-          
+          const formData = new FormData();
+          formData.append('image', method.imageFile);
+
+          const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to upload image');
+          }
+
+          const { url } = await response.json();
           updatedPaymentMethods.push({
             name: method.name,
-            image: downloadURL
+            image: import.meta.env.VITE_BUCKET_URL + url
           });
         } 
         // If it's an existing method with a URL
@@ -415,20 +436,27 @@ export const Admin = () => {
   const handleCourtSubmit = async (e) => {
     e.preventDefault();
     if (!user || !courtForm.name || !courtForm.location) return;
-    
+    let imageUrlBucket = '';
     const userId = user.uid;
     const timestamp = new Date();
     let imageUrl = courtForm.id ? courts.find(c => c.id === courtForm.id)?.image || null : null;
-    
     try {
       // Upload image if a new one was selected
       if (courtForm.image && courtForm.image instanceof File) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `courts/${userId}/${Date.now()}_${courtForm.image.name}`);
-        await uploadBytes(storageRef, courtForm.image);
-        imageUrl = await getDownloadURL(storageRef);
+        const formData = new FormData();
+        formData.append('image', courtForm.image);
+
+        const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+         imageUrlBucket = await response.json();
       }
-      
       // Clean up day-specific unavailable hours (remove empty strings)
       const cleanedDaySpecificHours = {};
       Object.entries(courtForm.daySpecificUnavailableHours || {}).forEach(([day, hours]) => {
@@ -443,7 +471,7 @@ export const Admin = () => {
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
         daySpecificUnavailableHours: cleanedDaySpecificHours,
-        image: imageUrl,
+        image: import.meta.env.VITE_BUCKET_URL + imageUrlBucket.url,
         userId: userId,
         updatedAt: timestamp.toISOString()
       };
@@ -782,7 +810,6 @@ export const Admin = () => {
         newCourtsMap[doc.id] = courtData.name;
         courtsData.push(courtData);
       });
-
       setCourts(courtsData);
       setCourtsMap(newCourtsMap); // Update the courts map
       setLoading(false);
@@ -1345,7 +1372,7 @@ export const Admin = () => {
                   <label htmlFor="court-image" className="image-upload-label">
                     {courtForm.imagePreview ? (
                       <img 
-                        src={courtForm.imagePreview} 
+                        src={courtForm.imagePreview}
                         alt="Court preview" 
                         className="image-preview"
                       />
@@ -1591,7 +1618,7 @@ export const Admin = () => {
             {zoomedImage && (
               <div className="zoomed-image-overlay" onClick={handleCloseBookingModal}>
                 <img 
-                  src={zoomedImage} 
+                  src={zoomedImage}
                   alt="Payment proof" 
                   className="zoomed-image"
                   onClick={e => e.stopPropagation()}
@@ -1684,7 +1711,7 @@ export const Admin = () => {
                     </div>
                     <div className="payment-proof-image-container">
                       <img 
-                        src={selectedBooking.paymentProof || selectedBooking.paymentImage} 
+                        src={selectedBooking.paymentProof || selectedBooking.paymentImage}
                         alt="Payment proof" 
                         className="payment-proof-image"
                         onClick={() => toggleZoomImage(selectedBooking.paymentProof || selectedBooking.paymentImage)}

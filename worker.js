@@ -37,48 +37,101 @@ async function handleRequest(request, env) {
     const apiPath = path.replace('/api', '');
     
     // Authentication endpoints
-    if (method === 'POST' && apiPath === '/login') {
-      const { email, password } = await request.json();
+    // if (method === 'POST' && apiPath === '/login') {
+    //   const { email, password } = await request.json();
       
-      // Demo authentication - replace with your actual authentication logic
-      if (email === 'admin@example.com' && password === 'admin123') {
-        return jsonResponse({
-          user: {
-            id: 1,
-            email: 'admin@example.com',
-            name: 'Admin User',
-            role: 'admin',
-            token: 'demo-jwt-token-12345'
-          }
-        });
-      } else {
-        return jsonResponse({ error: 'Invalid credentials' }, 401);
-      }
-    }
+    //   // Demo authentication - replace with your actual authentication logic
+    //   if (email === 'admin@example.com' && password === 'admin123') {
+    //     return jsonResponse({
+    //       user: {
+    //         id: 1,
+    //         email: 'admin@example.com',
+    //         name: 'Admin User',
+    //         role: 'admin',
+    //         token: 'demo-jwt-token-12345'
+    //       }
+    //     });
+    //   } else {
+    //     return jsonResponse({ error: 'Invalid credentials' }, 401);
+    //   }
+    // }
 
-    if (method === 'POST' && apiPath === '/register') {
-      const { name, email, password } = await request.json();
+    // if (method === 'POST' && apiPath === '/register') {
+    //   const { name, email, password } = await request.json();
       
-      // Demo registration - replace with your actual registration logic
-      return jsonResponse({
-        user: {
-          id: Date.now(),
-          email,
-          name,
-          role: 'user',
-          token: 'demo-jwt-token-' + Math.random().toString(36).substr(2, 9)
-        }
-      }, 201);
-    }
+    //   // Demo registration - replace with your actual registration logic
+    //   return jsonResponse({
+    //     user: {
+    //       id: Date.now(),
+    //       email,
+    //       name,
+    //       role: 'user',
+    //       token: 'demo-jwt-token-' + Math.random().toString(36).substr(2, 9)
+    //     }
+    //   }, 201);
+    // }
 
-    if (method === 'POST' && apiPath === '/logout') {
-      return jsonResponse({ message: 'Logged out successfully' });
-    }
+    // if (method === 'POST' && apiPath === '/logout') {
+    //   return jsonResponse({ message: 'Logged out successfully' });
+    // }
 
     // Add more API endpoints as needed
     return jsonResponse({ error: 'Not Found' }, 404);
   }
 
+  if (path === '/upload-image') {
+    if (method === 'POST') {
+      try {
+        const formData = await request.formData();
+        const file = formData.get('image');
+
+        if (!file) {
+          return jsonResponse({ error: 'No file uploaded' }, 400);
+        }
+
+        // Generate a unique filename (e.g., using a timestamp and original name)
+        const filename = `${Date.now()}-${encodeURIComponent(file.name)}`;
+        // Upload to R2 (assuming R2_BUCKET is bound in your Worker environment)
+        // You need to configure R2_BUCKET binding in your Cloudflare Worker settings.
+
+        await R2_BUCKET.put(filename, file.stream());
+
+        const publicUrl = `/images/${filename}`;
+
+        return jsonResponse({ url: publicUrl }, 200);
+
+      } catch (e) {
+        console.error('Error uploading image:', e);
+        return jsonResponse({ error: 'Failed to upload image' }, 500);
+      }
+    } else {
+      return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    }
+  }
+
+  if (path.startsWith(`/images/`)) {
+    if (method === 'GET') {
+      const filename = path.substring(`/images/`.length);
+      try {
+        const object = await R2_BUCKET.get(filename);
+
+        if (object === null) {
+          return new Response('Object Not Found', { status: 404 });
+        }
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set('etag', object.httpEtag);
+
+        return new Response(object.body, { headers });
+      } catch (e) {
+        console.error('Error fetching image from R2:', e);
+        return new Response('Failed to retrieve image', { status: 500 });
+      }
+    } else {
+      return jsonResponse({ error: 'Method Not Allowed' }, 405);
+    }
+  }
     // For all other routes, serve the React app (handles client-side routing)
   return serveStaticFile(path);
 

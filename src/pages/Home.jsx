@@ -76,7 +76,7 @@ export const Home = () => {
                 <div key={user.id} className="location-card">
                   <div className="location-image">
                     <img 
-                      src={user.photoURL || 'https://via.placeholder.com/300x200?text=No+Image'} 
+                      src={import.meta.env.VITE_BUCKET_URL + user.photoURL || 'https://via.placeholder.com/300x200?text=No+Image'}
                       alt={user.displayName || 'Court Host'} 
                     />
                   </div>
