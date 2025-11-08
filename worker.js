@@ -35,46 +35,6 @@ async function handleRequest(request, env) {
   // Handle API routes
   if (path.startsWith('/api/')) {
     const apiPath = path.replace('/api', '');
-    
-    // Authentication endpoints
-    // if (method === 'POST' && apiPath === '/login') {
-    //   const { email, password } = await request.json();
-      
-    //   // Demo authentication - replace with your actual authentication logic
-    //   if (email === 'admin@example.com' && password === 'admin123') {
-    //     return jsonResponse({
-    //       user: {
-    //         id: 1,
-    //         email: 'admin@example.com',
-    //         name: 'Admin User',
-    //         role: 'admin',
-    //         token: 'demo-jwt-token-12345'
-    //       }
-    //     });
-    //   } else {
-    //     return jsonResponse({ error: 'Invalid credentials' }, 401);
-    //   }
-    // }
-
-    // if (method === 'POST' && apiPath === '/register') {
-    //   const { name, email, password } = await request.json();
-      
-    //   // Demo registration - replace with your actual registration logic
-    //   return jsonResponse({
-    //     user: {
-    //       id: Date.now(),
-    //       email,
-    //       name,
-    //       role: 'user',
-    //       token: 'demo-jwt-token-' + Math.random().toString(36).substr(2, 9)
-    //     }
-    //   }, 201);
-    // }
-
-    // if (method === 'POST' && apiPath === '/logout') {
-    //   return jsonResponse({ message: 'Logged out successfully' });
-    // }
-
     // Add more API endpoints as needed
     return jsonResponse({ error: 'Not Found' }, 404);
   }
@@ -89,14 +49,27 @@ async function handleRequest(request, env) {
           return jsonResponse({ error: 'No file uploaded' }, 400);
         }
 
+        const specificDate = new Date();
+        // 2. Extract the components from the Date object
+        const year = specificDate.getFullYear();
+
+        // Date.getMonth() returns 0 for January, so we add 1, then pad.
+        const month = padZero(specificDate.getMonth() + 1);
+
+        // Date.getDate() returns the day of the month, then we pad.
+        const day = padZero(specificDate.getDate());
+
+        // 3. Combine the components into the "YYYY-MM-DD" format
+        const formattedDate = `${year}-${month}-${day}`;
+
         // Generate a unique filename (e.g., using a timestamp and original name)
-        const filename = `${Date.now()}-${encodeURIComponent(file.name)}`;
+        const filename = `${formattedDate}-${encodeURIComponent(file.name)}`;
         // Upload to R2 (assuming R2_BUCKET is bound in your Worker environment)
         // You need to configure R2_BUCKET binding in your Cloudflare Worker settings.
 
         await R2_BUCKET.put(filename, file.stream());
 
-        const publicUrl = `/images/${filename}`;
+        const publicUrl =  `/${ENV_ID}/images/${filename}`;
 
         return jsonResponse({ url: publicUrl }, 200);
 
@@ -109,9 +82,9 @@ async function handleRequest(request, env) {
     }
   }
 
-  if (path.startsWith(`/images/`)) {
+  if (path.startsWith(`/${ENV_ID}/images/`)) {
     if (method === 'GET') {
-      const filename = path.substring(`/images/`.length);
+      const filename = path.substring(`/${ENV_ID}/images/`.length);
       try {
         const object = await R2_BUCKET.get(filename);
 
@@ -135,6 +108,9 @@ async function handleRequest(request, env) {
     // For all other routes, serve the React app (handles client-side routing)
   return serveStaticFile(path);
 
+  function padZero(num) {
+    return num < 10 ? `0${num}` : `${num}`;
+  }
    // Helper function to serve static files
   async function serveStaticFile(path) {
     // Remove leading slash if present

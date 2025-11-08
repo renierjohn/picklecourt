@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/components/hero-banner.scss';
 import { useAuth } from '../contexts/AuthContext';
+import { FaFacebookMessenger } from 'react-icons/fa';
+
 
 
 const HeroBanner = ({ backgroundImage, variant = 'default' }) => {
@@ -22,6 +24,10 @@ const HeroBanner = ({ backgroundImage, variant = 'default' }) => {
   };
   const navigate = useNavigate();
   
+  const handleMessengerClick = () => {
+    window.open('http://m.me/pickleball.courts.renify', '_blank');
+  };
+
   const handleBookNow = () => {
     // Scroll to the courts section
     const courtsSection = document.getElementById('courts-section');
@@ -48,7 +54,7 @@ const HeroBanner = ({ backgroundImage, variant = 'default' }) => {
               >
                 Find a Court
               </button>
-              {!user && (
+              {user?.user === null && (
                 <button 
                   className="btn btn-secondary"
                   onClick={handleBecomeHost}
@@ -60,6 +66,39 @@ const HeroBanner = ({ backgroundImage, variant = 'default' }) => {
             <p className="features">
               <span>Easy Booking</span>
               <span>Real-time Availability</span>
+                <button 
+                  className="btn-messenger"
+                  onClick={handleMessengerClick}
+                  aria-label="Chat with us on Messenger"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '50px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    backgroundColor: '#4a90e2',
+                    color: 'white',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.25)',
+                    },
+                    '&:active': {
+                      transform: 'translateY(1px)',
+                      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+                    },
+                  }}
+                >
+                  <FaFacebookMessenger className="messenger-icon" />
+                  Contact Us
+                </button>
             </p>
           </>
         ) : (

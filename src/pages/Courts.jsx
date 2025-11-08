@@ -476,7 +476,7 @@ export const Courts = () => {
       
       <section className="calendar-section">
         <div className="container">
-          <h1 className="section-title">Book a Court</h1>
+          <h2 className="section-title">Select Date & Time</h2>
           <div className="date-selector">
             {days.map((day) => {
               const dayOfWeek = format(day, 'EEE');

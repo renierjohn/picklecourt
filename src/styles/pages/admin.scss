@@ -618,13 +618,13 @@
           letter-spacing: 0.5px;
           
           &.active {
-            background-color: rgba($success-color, 0.1);
+            background: rgba($success-color, 0.1);
             color: $success-color;
           }
           
           &.expired {
-            background-color: rgba($error-color, 0.1);
-            color: $error-color;
+            background: rgba($danger-color, 0.1);
+            color: $danger-color;
           }
         }
       }
@@ -651,7 +651,16 @@
           .value {
             font-size: $font-size-md;
             font-weight: 500;
-            color: $black;
+
+            &.active {
+              background: rgba($success-color, 0.1);
+              color: $success-color;
+            }
+          
+            &.expired {
+              background: rgba($danger-color, 0.1);
+              color: $danger-color;
+            }
           }
         }
       }
@@ -1312,7 +1321,7 @@
       background-color: rgba($primary-color, 0.02);
     }
 
-    .badge {
+    .status-badge {
       display: inline-block;
       padding: $spacing-xs $spacing-sm;
       border-radius: $border-radius-sm;

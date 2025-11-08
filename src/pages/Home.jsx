@@ -9,6 +9,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 import HeroBanner from '../components/HeroBanner';
 import { FaMapMarkerAlt, FaUser, FaPhone, FaClock, FaTableTennis } from 'react-icons/fa';
+import PickleballNews from '../components/PickleballNews';
 import '../styles/pages/home.scss';
 
 export const Home = () => {
@@ -62,11 +63,11 @@ export const Home = () => {
     <div className="home">
       <HeroBanner 
         variant="home"
-        backgroundImage="https://images.unsplash.com/photo-1638880121163-32b47a1b8a4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
+        backgroundImage="https://pub-786baec894f344bfa5eff4f59c6216d2.r2.dev/pickleball.png"
       />
       
       {/* Locations Section */}
-      <section className="locations-section">
+      <section className="locations-section" id="courts-section">
         <div className="container">
           <h2 className="section-title">Book a court with our verified hosts</h2>
           
@@ -127,7 +128,7 @@ export const Home = () => {
           </div>
         </div>
       </section>
-
+      
     </div>
   );
 };

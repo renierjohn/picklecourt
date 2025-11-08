@@ -7,6 +7,7 @@ import { doc, getDoc, getFirestore, collection, addDoc, serverTimestamp } from '
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp } from 'firebase/app';
 import { v4 as uuidv4 } from 'uuid';
+import { FaTableTennis } from 'react-icons/fa';
 import firebaseConfig from '../firebase/config';
 import '../styles/pages/booking-summary.scss';
 
@@ -272,12 +273,54 @@ export const BookingSummary = () => {
   if (loading) {
     return (
       <div className="booking-summary">
-        <div className="container">
-          <div className="loading">
-            <h2>Loading Booking Information</h2>
-            <p>Please wait while we load the court details...</p>
-            <p>Court ID: {courtId}</p>
-          </div>
+        <div className="container" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '50vh',
+          textAlign: 'center',
+          padding: '2rem'
+        }}>
+          <div style={{
+            width: '120px',
+            height: '120px',
+            borderRadius: '50%',
+            backgroundColor: '#f0f2f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1.5rem',
+            overflow: 'hidden',
+            border: '3px solid #e9ecef',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#4a90e2',
+              animation: 'pulse 1.5s infinite',
+              transform: 'rotate(-15deg)'
+            }}>
+              <FaTableTennis size={48} />
+            </div>
+             </div>
+          <h3 style={{
+            margin: '1rem 0 0.5rem',
+            color: '#333',
+            fontWeight: '600'
+          }}>Loading Booking Summary</h3>
+          <p style={{
+            color: '#666',
+            margin: '0',
+            maxWidth: '400px',
+            lineHeight: '1.5'
+          }}>
+            Preparing your booking information...
+          </p>
         </div>
       </div>
     );

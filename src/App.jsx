@@ -13,6 +13,7 @@ import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Bookings } from './pages/Bookings';
 import { Footer } from './components/Footer';
+import MessengerChat from './components/MessengerChat';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
             </Routes>
           </main>
           <Footer />
+          <MessengerChat />
         </div>
       </Router>
     </AuthProvider>

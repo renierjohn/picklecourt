@@ -94,6 +94,16 @@ export const Admin = () => {
     }
   };
   
+  const isSubscriptionExpired = (expiryDate) => {
+    if (!expiryDate) return false;
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    // Set both dates to start of day for accurate comparison
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    return expiry < today;
+  };
+
   const handleDayToggle = (day) => {
     setCourtForm(prev => {
       const currentDays = Array.isArray(prev.unavailableDays) ? prev.unavailableDays : [];
@@ -242,7 +252,6 @@ export const Admin = () => {
         });
         setImagePreview(userData.photoURL || '');
         setRevenue(userData.revenue || 0);
-console.log(userData);        
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -476,7 +485,7 @@ console.log(userData);
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
         daySpecificUnavailableHours: cleanedDaySpecificHours,
-        image: import.meta.env.VITE_BUCKET_URL + imageUrlBucket.url,
+        image: imageUrlBucket ? import.meta.env.VITE_BUCKET_URL + imageUrlBucket.url : imageUrl,
         userId: userId,
         updatedAt: timestamp.toISOString()
       };
@@ -1150,7 +1159,7 @@ console.log(userData);
             <div className="subscription-header">
               <h2>Subscription Status</h2>
               <span className={`status-badge ${userProfile.subscriptionType ? userProfile.subscriptionType.toLowerCase() : 'inactive'}`}>
-                {userProfile.subscriptionType || 'No Subscription'}
+                {userProfile.subscriptionType || 'Free Trial'}
               </span>
             </div>
             <div className="subscription-details">
@@ -1160,7 +1169,7 @@ console.log(userData);
               </div>
               <div className="detail">
                 <span className="label">Due Date:</span>
-                <span className="value">
+                <span className={`value ${isSubscriptionExpired(userProfile.subscriptionExpiry) ? 'expired' : 'active'}`}>
                   {userProfile.subscriptionExpiry 
                     ? new Date(userProfile.subscriptionExpiry).toLocaleDateString('en-US', { 
                         year: 'numeric', 
@@ -1217,7 +1226,7 @@ console.log(userData);
                 if (showCourtForm) {
                   resetCourtForm();
                 } else {
-                  setCourtForm({ id: null, name: '', location: '' });
+                  // setCourtForm({ id: null, name: '', location: '' });
                   setShowCourtForm(true);
                 }
               }}

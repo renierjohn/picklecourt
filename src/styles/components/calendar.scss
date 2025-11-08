@@ -14,7 +14,10 @@
   .container {
     max-width: 100%;
     overflow-x: auto;
-    padding: $spacing-sm 0;
+    padding: $spacing-sm $spacing-xxl * 2;
+    @media (max-width: $breakpoint-md) {
+      padding: $spacing-sm 0;
+    }
   }
 
   // Date Selector

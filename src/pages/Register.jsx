@@ -108,7 +108,17 @@ export const Register = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2>Create Account</h2>
+        <h2>Become a Host</h2>
+        <p style={{
+          textAlign: 'center',
+          color: '#4a90e2',
+          fontSize: '1.1rem',
+          fontWeight: '500',
+          margin: '0.5rem 0 1.5rem',
+          display: 'inline-block',
+          marginLeft: '50%',
+          transform: 'translateX(-50%)'
+        }}>Try 1 Month free trial</p>
         {error && <div className="error-message">{error}</div>}
         <div className="social-login">
           <button 

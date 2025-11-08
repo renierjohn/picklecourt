@@ -556,7 +556,7 @@ const UsersManagement = () => {
                 onChange={(e) => setSubscriptionType(e.target.value)}
                 className="form-control"
               >
-                <option value="free">Free</option>
+                <option value="free">Free Trial</option>
                 <option value="basic">Basic</option>
                 <option value="premium">Premium</option>
                 <option value="enterprise">Enterprise</option>
