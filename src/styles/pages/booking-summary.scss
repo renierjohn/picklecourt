@@ -72,6 +72,9 @@
     }
 
     .court-info {
+      @media (max-width: $breakpoint-md) {
+        padding: $spacing-md;
+      }
       flex: 1;
 
       h3 {
