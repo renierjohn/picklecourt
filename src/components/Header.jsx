@@ -68,7 +68,7 @@ export const Header = () => {
               {user?.email === 'renify.official@gmail.com' && (
                 <>
                   <Link to="/users" className="nav-link" onClick={() => setIsMenuOpen(false)}>Users</Link>
-                  <Link to="/database-test" className="nav-link" onClick={() => setIsMenuOpen(false)}>Database Test</Link>
+                  <Link to="/database-test" className="nav-link" onClick={() => setIsMenuOpen(false)}>DB Test</Link>
                 </>
               )}
             </div>

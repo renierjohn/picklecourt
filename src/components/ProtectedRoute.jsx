@@ -12,7 +12,11 @@ export const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requireAdmin && user.role !== 'admin' && user.role !== 'manager') {
+  if (user.role !== 'admin' && user.role !== 'manager') {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (requireAdmin && user.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 

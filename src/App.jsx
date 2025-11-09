@@ -31,7 +31,7 @@ function App() {
               <Route
                 path="/admin"
                 element={
-                  <ProtectedRoute requireAdmin>
+                  <ProtectedRoute>
                     <Admin />
                   </ProtectedRoute>
                 }
@@ -51,7 +51,7 @@ function App() {
               <Route
                 path="/database-test"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireAdmin>
                     <DatabaseTest />
                   </ProtectedRoute>
                 }
