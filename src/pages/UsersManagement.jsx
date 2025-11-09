@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, doc, getDocs, updateDoc, addDoc, deleteDoc, query, where, getFirestore, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, addDoc,setDoc, deleteDoc, query, where, getFirestore, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FaUser, FaCamera, FaSave, FaTimes, FaPlus, FaEye, FaCalendarAlt, FaTrash } from 'react-icons/fa';
 import '../styles/pages/users-management.scss';
 
@@ -56,7 +56,7 @@ const UsersManagement = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const db = getFirestore();
-  const storage = getStorage();
+  // const storage = getStorage();
   const auth = getAuth();
 
   // Check if current user is admin
@@ -232,10 +232,20 @@ const UsersManagement = () => {
 
       // Upload new profile image if selected
       if (profileImage) {
-        const storageRef = ref(storage, `profile_images/${editingUser.id}_${Date.now()}`);
-        await uploadBytes(storageRef, profileImage);
-        const downloadURL = await getDownloadURL(storageRef);
-        updates.photoURL = downloadURL;
+        const formData = new FormData();
+        formData.append('image', profileImage);
+        const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+        const { url, filename } = await response.json();
+        const imageURL = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}${url}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
+        updates.photoURL = imageURL;
       }
 
       await updateDoc(userRef, updates);
@@ -297,7 +307,7 @@ const UsersManagement = () => {
         email: email,
         name: name.trim(),
         role: role,
-        status: 1, // Active by default
+        status: 0, // Active by default
         location: location.trim(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -305,14 +315,25 @@ const UsersManagement = () => {
 
       // Upload profile image if selected
       if (profileImage) {
-        const storageRef = ref(storage, `profile_images/${authUser.uid}_${Date.now()}`);
-        await uploadBytes(storageRef, profileImage);
-        const downloadURL = await getDownloadURL(storageRef);
-        userData.photoURL = downloadURL;
+        const formData = new FormData();
+        formData.append('image', profileImage);
+        const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+        const { url, filename } = await response.json();
+        const imageURL = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}${url}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
+        userData.photoURL = imageURL;
       }
 
       // Add user to Firestore
-      await addDoc(collection(db, 'users'), userData);
+      await setDoc(doc(db, 'users', authUser.uid), userData, { merge: true });
+      // await addDoc(collection(db, 'users', authUser.uid), userData);
       
       // Refresh users list
       await fetchUsers();
@@ -389,7 +410,7 @@ const UsersManagement = () => {
                 onChange={(e) => setRole(e.target.value)}
               >
                 <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
               </select>
             </div>
             

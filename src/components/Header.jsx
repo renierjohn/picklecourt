@@ -46,6 +46,8 @@ export const Header = () => {
             <span className="logo-text">Pickle</span>
             <span className="logo-highlight">Ball</span>
             <span className="logo-text">Courts</span>
+            <span className="logo-text">&nbsp;</span>
+            <span className="logo-text">{import.meta.env.VITE_ENV_NAME}</span>
           </Link>
           
           <button 

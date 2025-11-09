@@ -87,12 +87,12 @@ export const AuthProvider = ({ children }) => {
             await setDoc(doc(db, 'users', firebaseUser.uid), {
               email: firebaseUser.email,
               name: firebaseUser.displayName || 'User',
-              role: user.role,
+              role: 'user',
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-              status: 0 // Active by default
+              status: 0, // Active by default
+              uid: firebaseUser.uid,
             });
-            userRole = user.role;
           }
           
           const userData = {
@@ -100,7 +100,8 @@ export const AuthProvider = ({ children }) => {
             email: firebaseUser.email,
             name: firebaseUser.displayName || 'User',
             role: userRole,
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
+            uid: firebaseUser.uid
           };
 
           // Set user in state and localStorage with 24-hour expiration
@@ -118,7 +119,7 @@ export const AuthProvider = ({ children }) => {
             lastLogin: new Date().toISOString()
           };
           setUser(userData);
-          setWithExpiry('user', JSON.stringify(userData), 24 * 60 * 60 * 1000);
+          // setWithExpiry('user', JSON.stringify(userData), 24 * 60 * 60 * 1000);
         }
       } else {
         // User is signed out
@@ -177,27 +178,30 @@ export const AuthProvider = ({ children }) => {
       const firebaseUser = result.user;
       
       // Prepare user data for Firestore
-      const userData = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName || 'User',
-        photoURL: firebaseUser.photoURL,
-        role: 'user',
-        status: 0, // Mark as active for social login
-        emailVerified: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (!userDoc.exists()) {
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || 'User',
+          photoURL: firebaseUser.photoURL,
+          role: 'user',
+          status: 0, // Mark as active for social login
+          emailVerified: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
 
-      // Store or update user data in Firestore
-      await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
-      
+        // Store or update user data in Firestore
+        await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
+      }
+     
       // Update local state with user data
       const userState = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         name: firebaseUser.displayName || 'User',
-        role: 'user',
+        role: userDoc.exists() ? (userDoc.data().role || 'user') : 'user',
         status: 0
       };
       

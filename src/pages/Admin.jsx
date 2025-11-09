@@ -254,7 +254,7 @@ export const Admin = () => {
             image: method.image
           })) : [],
           phoneNumber: userData.phoneNumber || '',
-          subscriptionType: userData.subscriptionType.toUpperCase() || 'N/A',
+          subscriptionType: userData.subscriptionType ? userData.subscriptionType.toUpperCase() : 'N/A',
           subscriptionExpiry: userData.subscriptionExpiry || 'N/A',
         });
         setImagePreview(userData.photoURL || '');
@@ -357,8 +357,7 @@ export const Admin = () => {
 
   // Handle profile form field changes
   const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-console.log(name,value);    
+    const { name, value } = e.target;   
     setUserProfile(prev => ({
       ...prev,
       [name]: value
@@ -482,7 +481,7 @@ console.log(name,value);
           throw new Error('Failed to upload image');
         }
 
-         const {url, filename} = await response.json();
+        const {url, filename} = await response.json();
         imageUrlBucket = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}/local/images/${filename}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
       }
       // Clean up day-specific unavailable hours (remove empty strings)
@@ -499,7 +498,7 @@ console.log(name,value);
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
         daySpecificUnavailableHours: cleanedDaySpecificHours,
-        image: imageUrlBucket ? import.meta.env.VITE_BUCKET_URL + '/' + imageUrlBucket.filename : imageUrl,
+        image: imageUrlBucket ? imageUrlBucket : imageUrl,
         userId: userId,
         updatedAt: timestamp.toISOString()
       };

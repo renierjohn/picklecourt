@@ -1,175 +1,231 @@
 import { useState, useEffect } from 'react';
-import { getDatabase, ref, set, onValue, push, remove } from 'firebase/database';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot,
+  getFirestore,
+  query,
+  where,
+  getDoc,
+  serverTimestamp
+} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/pages/database-test.scss';
 
 const DatabaseTest = () => {
-  const [items, setItems] = useState([]);
-  const [newItem, setNewItem] = useState('');
+  const [collections, setCollections] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState('users');
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [dbPath, setDbPath] = useState('events');
+  const [permissions, setPermissions] = useState({
+    read: false,
+    write: false,
+    admin: false
+  });
+  const db = getFirestore();
   const { user } = useAuth();
-  const db = getDatabase();
 
-  // Read data from the database
+  // List available collections
   useEffect(() => {
     if (!user) return;
     
-    setLoading(true);
-    const itemsRef = ref(db, dbPath);
-    
-    const unsubscribe = onValue(
-      itemsRef,
-      (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          const itemsList = Object.entries(data).map(([id, item]) => ({
-            id,
-            ...item,
-          }));
-          setItems(itemsList);
-        } else {
-          setItems([]);
-        }
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Database read failed:', error);
-        setError('Failed to load data from database');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [db, dbPath, user]);
-
-  // Add a new item to the database
-  const addItem = async (e) => {
-    e.preventDefault();
-    if (!newItem.trim() || !user) return;
-    
-    setLoading(true);
-    setError('');
-    
-    try {
-      const itemsRef = ref(db, dbPath);
-      const newItemRef = push(itemsRef);
-      
-      await set(newItemRef, {
-        text: newItem,
-        createdAt: new Date().toISOString(),
-        createdBy: user.email || 'anonymous',
-      });
-      
-      setNewItem('');
-    } catch (error) {
-      console.error('Error adding document: ', error);
-      setError('Failed to add item to database');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Remove an item from the database
-  const removeItem = async (id) => {
-    if (!user) return;
-    
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      setLoading(true);
-      setError('');
-      
+    const fetchCollections = async () => {
       try {
-        const itemRef = ref(db, `${dbPath}/${id}`);
-        await remove(itemRef);
+        setLoading(true);
+        // This is a workaround since there's no direct way to list collections in v9
+        // You might need to maintain a list of collections in a document
+        const defaultCollections = ['users', 'bookings', 'courts', 'payments'];
+        setCollections(defaultCollections);
+        
+        // Check user permissions
+        if (user.role === 'admin') {
+          setPermissions({
+            read: true,
+            write: true,
+            admin: true
+          });
+        } else {
+          setPermissions({
+            read: true,
+            write: false,
+            admin: false
+          });
+        }
       } catch (error) {
-        console.error('Error removing document: ', error);
-        setError('Failed to remove item from database');
+        console.error('Error fetching collections:', error);
+        setError('Failed to fetch collections');
       } finally {
         setLoading(false);
       }
-    }
-  };
+    };
+
+    fetchCollections();
+  }, [user]);
+
+  // Fetch documents from selected collection
+  useEffect(() => {
+    if (!user || !selectedCollection) return;
+    
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        const q = query(collection(db, selectedCollection));
+        const querySnapshot = await getDocs(q);
+        
+        const docs = [];
+        querySnapshot.forEach((doc) => {
+          docs.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        setDocuments(docs);
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+        setError(`Failed to load documents from ${selectedCollection}`);
+        setDocuments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDocuments();
+    
+    // Set up real-time listener
+    const q = query(collection(db, selectedCollection));
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const docs = [];
+        snapshot.forEach((doc) => {
+          docs.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        setDocuments(docs);
+      },
+      (error) => {
+        console.error('Error in real-time listener:', error);
+        setError('Error receiving real-time updates');
+      }
+    );
+    
+      return () => unsubscribe();
+  }, [selectedCollection, user]);
 
   if (!user) {
     return (
       <div className="database-test">
         <div className="container">
-          <h2>Database Test</h2>
-          <p>Please log in to test the database functionality.</p>
+          <h2>Firestore Database Test</h2>
+          <p>Please log in to test the Firestore database functionality.</p>
         </div>
       </div>
     );
   }
 
+  const deleteDocument = async (docId) => {
+    if (!user || !permissions.write) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      const docRef = doc(db, selectedCollection, docId);
+      await deleteDoc(docRef);
+      
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      setError(`Failed to delete document: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="database-test">
       <div className="container">
-        <h2>Firebase Database Test</h2>
+        <h2>Firestore Database Test</h2>
         
-        <div className="database-controls">
-          <div className="form-group">
-            <label htmlFor="dbPath">Database Path:</label>
-            <input
-              type="text"
-              id="dbPath"
-              value={dbPath}
-              onChange={(e) => setDbPath(e.target.value)}
-              placeholder="Enter database path (e.g., 'test_items')"
-            />
+        {!permissions.read ? (
+          <div className="permission-warning">
+            <p>You don't have permission to view this data. Please contact an administrator.</p>
           </div>
-          
-          <form onSubmit={addItem} className="add-item-form">
-            <input
-              type="text"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              placeholder="Enter item text"
-              disabled={loading}
-            />
-            <button type="submit" disabled={!newItem.trim() || loading}>
-              {loading ? 'Adding...' : 'Add Item'}
-            </button>
-          </form>
-        </div>
+        ) : (
+          <>
+            <div className="db-controls">
+              <div className="form-group">
+                <label htmlFor="collection">Select Collection:</label>
+                <select
+                  id="collection"
+                  value={selectedCollection}
+                  onChange={(e) => setSelectedCollection(e.target.value)}
+                  disabled={loading}
+                >
+                  {collections.map((collection) => (
+                    <option key={collection} value={collection}>
+                      {collection}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="permissions-badge">
+                <span className={permissions.read ? 'active' : ''} title="Read Access">R</span>
+                <span className={permissions.write ? 'active' : ''} title="Write Access">W</span>
+                <span className={permissions.admin ? 'active' : ''} title="Admin Access">A</span>
+              </div>
+            </div>
 
-        {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message">{error}</div>}
 
-        <div className="items-list">
-          <h3>Items in Database:</h3>
-          {loading && items.length === 0 ? (
-            <p>Loading items...</p>
-          ) : items.length === 0 ? (
-            <p>No items found in the database.</p>
-          ) : (
-            <ul>
-              {items.map((item) => (
-                <li key={item.id}>
-                  <div className="item-content">
-                    <span>{item.text}</span>
-                    <small>
-                      Added by {item.createdBy} on {new Date(item.createdAt).toLocaleString()}
-                    </small>
+            <div className="db-content">
+              <div className="db-documents">
+                <h3>Documents in {selectedCollection}:</h3>
+                {loading ? (
+                  <p>Loading documents...</p>
+                ) : documents.length === 0 ? (
+                  <p>No documents found in this collection.</p>
+                ) : (
+                  <div className="documents-grid">
+                    {documents.map((docItem) => (
+                      <div key={docItem.id} className="document-card">
+                        <div className="document-header">
+                          <h4>Document ID: {docItem.id}</h4>
+                          {permissions.write && (
+                            <button 
+                              className="delete-btn"
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this document?')) {
+                                  deleteDocument(docItem.id);
+                                }
+                              }}
+                              disabled={!permissions.write}
+                              title="Delete Document"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        <div className="document-body">
+                          <pre>{JSON.stringify(docItem, null, 2)}</pre>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    disabled={loading}
-                    className="delete-button"
-                  >
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        
-        <div className="database-info">
-          <h3>Database Information</h3>
-          <p><strong>Current Path:</strong> {dbPath}</p>
-          <p><strong>Items Count:</strong> {items.length}</p>
-          <p><strong>User:</strong> {user.email}</p>
-        </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
