@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:stage": "vite build --mode stage",
     "build:prod": "vite build --mode prod",
+    "deploy:stage": "vite build --mode stage &&wrangler deploy --env staging",
+    "deploy:prod": "vite build --mode prod &&wrangler deploy --env prod",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "start": "vite",

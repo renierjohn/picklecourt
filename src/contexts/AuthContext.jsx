@@ -100,8 +100,7 @@ export const AuthProvider = ({ children }) => {
             email: firebaseUser.email,
             name: firebaseUser.displayName || 'User',
             role: userRole,
-            lastLogin: new Date().toISOString(),
-            uid: firebaseUser.uid
+            lastLogin: new Date().toISOString()
           };
 
           // Set user in state and localStorage with 24-hour expiration
