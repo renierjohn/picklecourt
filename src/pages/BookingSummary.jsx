@@ -94,7 +94,7 @@ export const BookingSummary = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+      const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
         method: 'POST',
         body: formData,
       });
@@ -103,8 +103,9 @@ export const BookingSummary = () => {
         throw new Error('Failed to upload image');
       }
 
-      const { url } = await response.json();
-      const imageUrl = import.meta.env.VITE_BUCKET_URL + url;
+      const { url, filename } = await response.json();
+      const imageUrl = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}${url}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
+
       return imageUrl;
 
     } catch (error) {

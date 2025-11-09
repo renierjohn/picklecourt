@@ -63,7 +63,7 @@ async function handleRequest(request, env) {
         const formattedDate = `${year}-${month}-${day}`;
 
         // Generate a unique filename (e.g., using a timestamp and original name)
-        const filename = `${formattedDate}-${encodeURIComponent(file.name)}`;
+        const filename = `${formattedDate}-${generateTimestampedFilename(file.name)}`;
         // Upload to R2 (assuming R2_BUCKET is bound in your Worker environment)
         // You need to configure R2_BUCKET binding in your Cloudflare Worker settings.
 
@@ -71,7 +71,7 @@ async function handleRequest(request, env) {
 
         const publicUrl =  `/${ENV_ID}/images/${filename}`;
 
-        return jsonResponse({ url: publicUrl }, 200);
+        return jsonResponse({ url: publicUrl, filename: filename }, 200);
 
       } catch (e) {
         console.error('Error uploading image:', e);
@@ -110,6 +110,39 @@ async function handleRequest(request, env) {
 
   function padZero(num) {
     return num < 10 ? `0${num}` : `${num}`;
+  }
+
+  /**
+   * Utility function to replace the base filename with a Unix timestamp
+   * while preserving the original file extension.
+   *
+   * This is useful for creating unique, non-colliding R2 object keys.
+   *
+   * @param {string} originalFilename - The original name of the file (e.g., "my_photo.jpg").
+   * @returns {string} The new, timestamped filename (e.g., "1731178650000.jpg").
+   */
+  function generateTimestampedFilename(originalFilename) {
+      if (!originalFilename || typeof originalFilename !== 'string') {
+          throw new Error("Invalid filename provided.");
+      }
+
+      // 1. Get the current Unix timestamp in milliseconds
+      const timestamp = Date.now();
+
+      // 2. Find the position of the last dot (.) to separate the extension
+      const dotIndex = originalFilename.lastIndexOf('.');
+
+      let extension = '';
+      
+      // Check if an extension exists
+      if (dotIndex !== -1 && dotIndex < originalFilename.length - 1) {
+          // Extract the extension (e.g., ".jpg" or ".png")
+          extension = originalFilename.substring(dotIndex);
+      }
+      
+      // 3. Combine the timestamp and the extension to create the new filename
+      // The R2 key will look like "1731178650000.jpg"
+      return `${timestamp}${extension}`;
   }
    // Helper function to serve static files
   async function serveStaticFile(path) {

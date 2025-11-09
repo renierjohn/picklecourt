@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
@@ -378,7 +377,7 @@ export const Admin = () => {
         const formData = new FormData();
         formData.append('image', profileImage);
 
-        const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+        const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
           method: 'POST',
           body: formData,
         });
@@ -387,9 +386,10 @@ export const Admin = () => {
           throw new Error('Failed to upload image');
         }
 
-        const { url } = await response.json();
-        updates.photoURL = import.meta.env.VITE_BUCKET_URL + url;
-        setImagePreview(import.meta.env.VITE_BUCKET_URL + url);
+        const { url, filename } = await response.json();
+        const imageURL = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}${url}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
+        updates.photoURL = imageURL;
+        setImagePreview(imageURL);
       }
 
       // Process payment methods
@@ -403,7 +403,7 @@ export const Admin = () => {
           const formData = new FormData();
           formData.append('image', method.imageFile);
 
-          const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+          const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
             method: 'POST',
             body: formData,
           });
@@ -412,10 +412,12 @@ export const Admin = () => {
             throw new Error('Failed to upload image');
           }
 
-          const { url } = await response.json();
+          const { url, filename } = await response.json();
+          const imageURL = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}${url}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
+
           updatedPaymentMethods.push({
             name: method.name,
-            image: import.meta.env.VITE_BUCKET_URL + url
+            image: imageURL
           });
         } 
         // If it's an existing method with a URL
@@ -460,7 +462,7 @@ export const Admin = () => {
         const formData = new FormData();
         formData.append('image', courtForm.image);
 
-        const response = await fetch(import.meta.env.VITE_BUCKET_URL + '/upload-image', {
+        const response = await fetch(import.meta.env.VITE_BUCKET_API_URL + '/upload-image', {
           method: 'POST',
           body: formData,
         });
@@ -469,7 +471,8 @@ export const Admin = () => {
           throw new Error('Failed to upload image');
         }
 
-         imageUrlBucket = await response.json();
+         const {url, filename} = await response.json();
+        imageUrlBucket = import.meta.env.MODE === 'development' ? `${import.meta.env.VITE_BUCKET_URL}/local/images/${filename}` : `${import.meta.env.VITE_BUCKET_URL}/${filename}`;
       }
       // Clean up day-specific unavailable hours (remove empty strings)
       const cleanedDaySpecificHours = {};
@@ -485,7 +488,7 @@ export const Admin = () => {
         unavailableDays: courtForm.unavailableDays || [],
         unavailableHours: courtForm.unavailableHours && courtForm.unavailableHours.filter(Boolean) || [],
         daySpecificUnavailableHours: cleanedDaySpecificHours,
-        image: imageUrlBucket ? import.meta.env.VITE_BUCKET_URL + imageUrlBucket.url : imageUrl,
+        image: imageUrlBucket ? import.meta.env.VITE_BUCKET_URL + '/' + imageUrlBucket.filename : imageUrl,
         userId: userId,
         updatedAt: timestamp.toISOString()
       };
@@ -815,11 +818,15 @@ export const Admin = () => {
 
   // Filter upcoming bookings (today and future) for managed courts
   const managedCourtIds = courts.map(court => court.id);
+  const todayMidnight = new Date();
+    // This method sets the hours, minutes, seconds, and milliseconds of the
+    // 'todayMidnight' object to zero in the LOCAL time zone.
+  todayMidnight.setHours(0, 0, 0, 0); 
 
   const upcomingBookings = bookings
     .filter(booking => {
       const bookingDate = booking.date?.toDate ? booking.date.toDate() : new Date(booking.date);
-      const isUpcoming = bookingDate >= new Date();
+      const isUpcoming = bookingDate >= todayMidnight;
       const isManagedCourt = managedCourtIds.includes(booking.courtId);  
       return booking.date && isUpcoming && isManagedCourt;
     })
@@ -830,9 +837,20 @@ export const Admin = () => {
     })
     .slice(0, 20); // Show the next 20 upcoming bookings
   // Filter recent bookings (past bookings)
-  const recentBookings = bookings
-    .filter(booking => booking.date && new Date(booking.date) < new Date())
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+   // 1. Determine the exact moment of Local Midnight (00:00:00.000) for today.
+
+  // const recentBookings = bookings
+  //   .filter(booking => booking.date && new Date(booking.date) <= new Date())
+  //   .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const recentBookings = bookings
+      .filter(booking => {
+        if (!booking.date) {
+            return false; // Skip bookings without a date
+        }
+        const bookingDate = new Date(booking.date);
+        return bookingDate < todayMidnight;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Subscription data - in a real app, this would come from an API or user profile
   const subscriptionData = {
@@ -1617,11 +1635,11 @@ export const Admin = () => {
                         <td>{courtName}</td>
                         <td>{booking.userName || 'Guest'}</td>
                         <td>{formattedDate}</td>
-                        <td>{booking.timeSlot}</td>
+                        <td>{booking.times}</td>
                         <td>
                           <div className="contact-info">
-                            <div>{booking.phone || 'N/A'}</div>
-                            {booking.email && <div className="text-muted small">{booking.email}</div>}
+                            <div>{booking.user.phone || 'N/A'}</div>
+                            {booking.user.email && <div className="text-muted small">{booking.user.email}</div>}
                           </div>
                         </td>
                         <td>
@@ -1629,7 +1647,7 @@ export const Admin = () => {
                             {booking.status || 'Completed'}
                           </span>
                         </td>
-                        <td>₱{booking.amount ? parseFloat(booking.amount).toFixed(2) : '0.00'}</td>
+                        <td>₱{booking.totalPrice ? parseFloat(booking.totalPrice).toFixed(2) : '0.00'}</td>
                         <td>
                           {booking.receiptNumber ? (
                             <span className="receipt-number">
