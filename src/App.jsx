@@ -14,10 +14,12 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Bookings } from './pages/Bookings';
 import { Footer } from './components/Footer';
 import MessengerChat from './components/MessengerChat';
+import SeoMeta from './components/SeoMeta';
 
 function App() {
   return (
     <AuthProvider>
+      <SeoMeta />
       <Router>
         <div className="app">
           <Header />

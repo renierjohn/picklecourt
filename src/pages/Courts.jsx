@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import SeoMeta from '../components/SeoMeta';
 import { format, addDays, isToday, isWeekend, isSameDay, parseISO } from 'date-fns';
 import { getFirestore, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../firebase/config';
@@ -16,6 +17,11 @@ const db = getFirestore(app);
 export const Courts = () => {
   const navigate = useNavigate();
   const { userId } = useParams();
+  
+  // SEO Meta Data
+  const pageTitle = `PickleBall Courts - Find & Book Available Courts`;
+  const pageDescription = "Browse and book available PickleBall courts. Check real-time availability and secure your playing time.";
+  // const pageImage = "/images/courts-preview.jpg";
 
   // Generate dates for the next 2 months (current month + next month)
   const today = new Date();
@@ -34,6 +40,7 @@ export const Courts = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
+  const [userName, setUserName] = useState('');
   const [userPhoto, setUserPhoto] = useState(null);
   const [userLocation, setUserLocation] = useState('');
 
@@ -243,6 +250,7 @@ export const Courts = () => {
         // Get the user document
         const userDoc = userSnapshot.docs[0];
         const userData = userDoc.data();
+        setUserName(userData.name || 'PickleBall Courts');
         setUserPhoto(userData.photoURL || null);
         setUserLocation(userData.location || '');
         const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
@@ -368,7 +376,14 @@ export const Courts = () => {
   }
 
   return (
-    <div className="courts">
+    <>
+      <SeoMeta 
+        title={userName + ' - ' + pageTitle}
+        description={pageDescription}
+        image={userPhoto}
+        url={`https://events-ph.com/courts${userId ? `/${userId}` : ''}`}
+      />
+      <div className="courts">
       <HeroBanner backgroundImage={userPhoto} />
 
             <section id="courts-section" className="courts-section">
@@ -600,6 +615,7 @@ export const Courts = () => {
           </div>
         </section>
       )}
-    </div>
+      </div>
+    </>
   );
 };

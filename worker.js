@@ -69,7 +69,7 @@ async function handleRequest(request, env) {
 
         await R2_BUCKET.put(filename, file.stream());
 
-        const publicUrl =  `/${ENV_ID}/images/${filename}`;
+        const publicUrl =  `/images/${filename}`;
 
         return jsonResponse({ url: publicUrl, filename: filename }, 200);
 
