@@ -110,6 +110,71 @@ export const Admin = () => {
     return expiry < today;
   };
 
+  // Generate and download CSV report of bookings
+  const generateCSV = () => {
+    // Combine upcoming and recent bookings
+    const allBookings = [...upcomingBookings, ...(recentBookings || [])];
+    
+    if (allBookings.length === 0) return;
+
+    // Sort by date (newest first)
+    const sortedBookings = [...allBookings].sort((a, b) => {
+      return new Date(b.date) - new Date(a.date);
+    });
+
+    // Define CSV header with BOM for Excel/Google Sheets
+    let csvContent = '\uFEFF'; // BOM for UTF-8
+    csvContent += 'Customer,Date,Time Slots,Contact,Status,Amount,Type\r\n';
+
+    // Add each booking as a row in the CSV
+    sortedBookings.forEach(booking => {
+      const customer = booking.user?.name || 'Guest';
+      const date = booking.formattedDate || '';
+      const timeSlots = booking.formattedTimes || '';
+      const contact = booking.user?.phone || '';
+      const status = booking.status || 'pending';
+      const amount = `₱${Number(booking.totalPrice || 0).toFixed(2)}`;
+      const bookingType = upcomingBookings.some(b => b.id === booking.id) ? 'Upcoming' : 'Past';
+
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        // If the field contains commas, quotes, or newlines, wrap it in quotes and escape existing quotes
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Add the row to the CSV content
+      csvContent += [
+        escapeCsv(customer),
+        escapeCsv(date),
+        escapeCsv(timeSlots),
+        escapeCsv(contact),
+        escapeCsv(status),
+        escapeCsv(amount),
+        escapeCsv(bookingType)
+      ].join(',') + '\n';
+    });
+
+    // Create a download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `bookings_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDayToggle = (day) => {
     setCourtForm(prev => {
       const currentDays = Array.isArray(prev.unavailableDays) ? prev.unavailableDays : [];
@@ -959,14 +1024,22 @@ export const Admin = () => {
           <div className="profile-card">
             <div className="profile-header">
               <h2>My Profile</h2>
-              {!isEditingProfile ? (
                 <button 
-                  className="btn-edit"
-                  onClick={() => setIsEditingProfile(true)}
+                  className="btn btn-generate"
+                  onClick={generateCSV}
+                  disabled={upcomingBookings.length === 0 && (!recentBookings || recentBookings.length === 0)}
+                  title="Download all bookings as CSV"
                 >
-                  <FaUser /> Edit Profile
+                  Generate Report (CSV)
                 </button>
-              ) : (
+                {!isEditingProfile ? (
+                  <button 
+                    className="btn-edit"
+                    onClick={() => setIsEditingProfile(true)}
+                  >
+                    <FaUser /> Edit Profile
+                  </button>
+                ) : (
                 <div className="profile-actions">
                   <button 
                     className="btn-cancel"
@@ -1004,6 +1077,7 @@ export const Admin = () => {
                           <FaUser />
                         </div>
                       )}
+                      
                       <div className="image-overlay">
                         <FaCamera />
                         <span>Change Photo</span>
@@ -1018,6 +1092,7 @@ export const Admin = () => {
                     />
                   </div>
                 ) : (
+                  
                   <div className="profile-image">
                     {userProfile.photoURL ? (
                       <img src={userProfile.photoURL} alt="Profile" />
@@ -1027,6 +1102,7 @@ export const Admin = () => {
                       </div>
                     )}
                   </div>
+                  
                 )}
               </div>
               
@@ -1165,7 +1241,7 @@ export const Admin = () => {
                       <p className="location">
                         <i className="fas fa-map-marker-alt"></i> {userProfile.location}
                       </p>
-                    )}
+                    )}                 
                     {userProfile.paymentMethods?.length > 0 && (
                       <div className="payment-methods-preview">
                       <h4>Payment Methods</h4>
@@ -1545,7 +1621,17 @@ export const Admin = () => {
         <div className="bookings-table-container">
           <div className="section-header">
             <h2>Upcoming Bookings</h2>
-            <span className="badge">{upcomingBookings.length} Upcoming</span>
+            <div className="header-actions">
+              <button 
+                className="btn btn-primary"
+                onClick={() => generateCSV()}
+                disabled={upcomingBookings.length === 0}
+                title="Download bookings as CSV"
+              >
+                Generate Report (CSV)
+              </button>
+              <span className="badge">{upcomingBookings.length} Upcoming</span>
+            </div>
           </div>
           
           {upcomingBookings.length > 0 ? (

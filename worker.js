@@ -1,8 +1,8 @@
 addEventListener('fetch', (event) => {
-  event.respondWith(handleRequest(event.request, event.env));
+  event.respondWith(handleRequest(event.request));
 });
 
-async function handleRequest(request, env) {
+async function handleRequest(request) {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;

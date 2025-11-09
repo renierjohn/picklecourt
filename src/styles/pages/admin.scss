@@ -390,7 +390,7 @@
           color: $text-color;
         }
         
-        .btn-edit, .btn-save, .btn-cancel {
+        .btn-generate .btn-edit, .btn-save, .btn-cancel {
           display: inline-flex;
           align-items: center;
           gap: $spacing-xs;
