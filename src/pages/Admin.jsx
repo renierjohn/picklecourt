@@ -5,6 +5,7 @@ import { useAuth, auth } from '../contexts/AuthContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
 import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt, FaTrash } from 'react-icons/fa';
+import LocationPicker from '../components/LocationPicker';
 import '../styles/pages/admin.scss';
 import '../styles/components/_booking-modal.scss';
 
@@ -69,7 +70,13 @@ export const Admin = () => {
   const [userProfile, setUserProfile] = useState({
     name: '',
     email: '',
+    phoneNumber: '',
     location: '',
+    locationData: {
+      address: '',
+      lat: null,
+      lng: null
+    },
     photoURL: '',
     paymentMethods: []
   });
@@ -246,6 +253,7 @@ export const Admin = () => {
             name: method.name,
             image: method.image
           })) : [],
+          phoneNumber: userData.phoneNumber || '',
           subscriptionType: userData.subscriptionType.toUpperCase() || 'N/A',
           subscriptionExpiry: userData.subscriptionExpiry || 'N/A',
         });
@@ -350,6 +358,7 @@ export const Admin = () => {
   // Handle profile form field changes
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
+console.log(name,value);    
     setUserProfile(prev => ({
       ...prev,
       [name]: value
@@ -369,7 +378,9 @@ export const Admin = () => {
         name: userProfile.name.trim(),
         location: userProfile.location.trim(),
         profile_id: profileId,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        phoneNumber: userProfile.phoneNumber ? userProfile.phoneNumber.trim() : '',
+        email: userProfile.email.trim(),
       };
 
       // Upload new profile image if selected
@@ -1043,16 +1054,32 @@ export const Admin = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Location</label>
+                      <label>Phone Number</label>
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        value={userProfile.phoneNumber || ''}
+                        onChange={handleProfileChange}
+                        placeholder="Enter your phone number"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label><FaMapMarkerAlt /> Location</label>
                       <input
                         type="text"
+                        id="location"
                         name="location"
                         value={userProfile.location}
                         onChange={handleProfileChange}
-                        placeholder="Your business location"
+                        placeholder="Enter your location or select on map"
+                        className="form-control"
                       />
-                    </div>
-                   
+                      <div style={{ marginTop: '15px' }}>
+                        <LocationPicker
+                        initialLocation={userProfile.location}
+                        />
+                      </div>
+                    </div>   
                     <div className="payment-methods">
                       <h4>Payment Methods</h4>
                       <div className="payment-methods-grid">

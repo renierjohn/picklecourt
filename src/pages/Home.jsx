@@ -8,7 +8,7 @@ import firebaseConfig from '../firebase/config';
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 import HeroBanner from '../components/HeroBanner';
-import { FaMapMarkerAlt, FaUser, FaPhone, FaClock, FaTableTennis } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope, FaTableTennis, FaMap } from 'react-icons/fa';
 import PickleballNews from '../components/PickleballNews';
 import '../styles/pages/home.scss';
 
@@ -87,8 +87,10 @@ export const Home = () => {
                         <h3>{user.name || 'Pickleball Court'}</h3>
                         {user.location && (
                           <div className="address">
-                            <FaMapMarkerAlt className="icon" /> 
-                            <span>{user.location}</span>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${user.location}`} target="_blank" rel="noopener noreferrer">
+                              <FaMapMarkerAlt className="icon" /> 
+                              <span>{user.location}</span>
+                            </a>
                           </div>
                         )}
                       </div>
@@ -97,12 +99,12 @@ export const Home = () => {
                     <div className="location-features">
                       {user.phoneNumber && (
                         <span className="feature">
-                          <FaPhone className="icon" /> {user.phoneNumber}
+                          <FaPhone className="icon" />&nbsp;{user.phoneNumber}
                         </span>
                       )}
-                      {user.operatingHours && (
+                      {user.email && (
                         <span className="feature">
-                          <FaClock className="icon" /> {user.operatingHours}
+                          <FaEnvelope className="icon" /> &nbsp;{user.email}
                         </span>
                       )}
                       {user.courtType && (

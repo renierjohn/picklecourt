@@ -35,6 +35,7 @@ export const Courts = () => {
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [userPhoto, setUserPhoto] = useState(null);
+  const [userLocation, setUserLocation] = useState('');
 
   // Check if a time slot is during lunch break (12:00 - 13:00)
   const isLunchBreak = (time24) => {
@@ -243,6 +244,7 @@ export const Courts = () => {
         const userDoc = userSnapshot.docs[0];
         const userData = userDoc.data();
         setUserPhoto(userData.photoURL || null);
+        setUserLocation(userData.location || '');
         const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
 
         // Now fetch courts for this user
@@ -424,53 +426,6 @@ export const Courts = () => {
               </div>
             ))}
           </div>
-          
-          {selectedCourt && (
-            <div className="selected-court-info">
-              <h3>Booking for: {courts.find(c => c.id === selectedCourt)?.name}</h3>
-              <p>Select your preferred date and time slots above.</p>
-              {selectedTimes.length > 0 && (
-                <div className="booking-summary">
-                  <h4>Your Selection:</h4>
-                  <ul>
-                    {selectedTimes.map(time => (
-                      <li key={time}>
-                        {format(selectedDate, 'MMMM d, yyyy')} at {formatTime(time)}
-                        <button 
-                          className="remove-time"
-                          onClick={() => setSelectedTimes(prev => prev.filter(t => t !== time))}
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <button 
-                    className="book-now-button"
-                    disabled={courts.find(c => c.id === selectedCourt)?.status === 'maintenance'}
-                    onClick={() => {
-                      const selectedCourtData = courts.find(c => c.id === selectedCourt);
-                      if (selectedCourtData?.status === 'maintenance') return;
-                      
-                      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-                      const timesStr = selectedTimes.join(',');
-                      
-                      navigate(`/booking-summary/${selectedCourt}/${dateStr}/${timesStr}`, {
-                        state: {
-                          court: selectedCourtData,
-                          date: selectedDate,
-                          times: selectedTimes,
-                          userId: userId
-                        }
-                      });
-                    }}
-                  >
-                    Book Now
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </section>
       
@@ -571,6 +526,80 @@ export const Courts = () => {
           </div>
         </div>
       </section>
+      <section className="booking-section">
+         {selectedCourt && (
+          <div className="container">
+            <div className="selected-court-info">
+              <h3>Booking for: {courts.find(c => c.id === selectedCourt)?.name}</h3>
+              <p>Select your preferred date and time slots above.</p>
+              {selectedTimes.length > 0 && (
+                <div className="booking-summary">
+                  <h4>Your Selection:</h4>
+                  <ul>
+                    {selectedTimes.map(time => (
+                      <li key={time}>
+                        {format(selectedDate, 'MMMM d, yyyy')} at {formatTime(time)}
+                        <button 
+                          className="remove-time"
+                          onClick={() => setSelectedTimes(prev => prev.filter(t => t !== time))}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button 
+                    className="book-now-button"
+                    disabled={courts.find(c => c.id === selectedCourt)?.status === 'maintenance'}
+                    onClick={() => {
+                      const selectedCourtData = courts.find(c => c.id === selectedCourt);
+                      if (selectedCourtData?.status === 'maintenance') return;
+                      
+                      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+                      const timesStr = selectedTimes.join(',');
+                      
+                      navigate(`/booking-summary/${selectedCourt}/${dateStr}/${timesStr}`, {
+                        state: {
+                          court: selectedCourtData,
+                          date: selectedDate,
+                          times: selectedTimes,
+                          userId: userId
+                        }
+                      });
+                    }}
+                  >
+                    Book Now
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+      </section>
+
+      {/* Google Maps Section */}
+      {userLocation && (
+        <section className="map-section" style={{ padding: '2rem 0', backgroundColor: '#f8f9fa' }}>
+          <div className="container">
+            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Location</h2>
+            <div style={{ height: '400px', width: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+              <iframe
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                marginHeight="0"
+                marginWidth="0"
+                src={`https://maps.google.com/maps?width=100%&height=600&hl=en&q=${encodeURIComponent(userLocation)}&t=&z=14&ie=UTF8&iwloc=B&output=embed`}
+                title="Court Location"
+                style={{ border: 'none' }}
+                allowFullScreen=""
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };
