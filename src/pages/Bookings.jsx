@@ -5,7 +5,8 @@ import { collection, query, where, getDocs, getFirestore, orderBy } from 'fireba
 import { initializeApp } from 'firebase/app';
 import firebaseConfig from '../firebase/config';
 import { getAuth } from 'firebase/auth';
-import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope, FaReceipt, FaTimes } from 'react-icons/fa';
+import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope, FaFacebook, FaTimes, FaCopy } from 'react-icons/fa';
+import GoogleAdsense from '../components/GoogleAdsense';
 import '../styles/pages/bookings.scss';
 
 // Initialize Firebase
@@ -18,6 +19,38 @@ export const Bookings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const shareToFacebook = () => {
+    const transactionId = getTransactionId();
+    let url = window.location.href.split('?')[0]; // Get base URL without query params
+    
+    // Add transaction ID as query param if it exists and not already in URL
+    if (transactionId && !window.location.search.includes('id=')) {
+      url += `?id=${encodeURIComponent(transactionId)}`;
+    } else {
+      // If there are other query params, keep them
+      url = window.location.href
+    }    
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+  };
+
+  const copyToClipboard = () => {
+    const transactionId = getTransactionId();
+    let url = window.location.href.split('?')[0]; // Get base URL without query params
+    
+    // Add transaction ID as query param if it exists and not already in URL
+    if (transactionId && !window.location.search.includes('id=')) {
+      url += `?id=${encodeURIComponent(transactionId)}`;
+    } else {
+      // If there are other query params, keep them
+      url = window.location.href
+    }
+    
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   const navigate = useNavigate();
 
   const handleImageClick = (imageUrl) => {
@@ -30,8 +63,17 @@ export const Bookings = () => {
     document.body.style.overflow = 'auto';
   };
 
-  // Get transaction ID from cookie
+  // Get transaction ID from URL query parameter or cookie
   const getTransactionId = () => {
+    // Check URL query parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('id'); 
+    if (idFromUrl) {
+      setTransactionId(idFromUrl);
+      return decodeURIComponent(idFromUrl);
+    }
+    
+    // Fall back to checking cookies
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -161,7 +203,16 @@ export const Bookings = () => {
     return (
       <div className="bookings">
         <div className="container">
-          <h1>My Bookings</h1>
+          <div className="title-container">
+            <h1>My Bookings</h1>
+            <button 
+              onClick={copyToClipboard} 
+              className="copy-button"
+              title="Copy link to this page"
+            >
+              {copied ? 'Copied!' : <FaCopy />}
+            </button>
+          </div>
           <div className="loading">
             <p>Loading your bookings...</p>
           </div>
@@ -174,7 +225,16 @@ export const Bookings = () => {
     return (
       <div className="bookings">
         <div className="container">
-          <h1>My Bookings</h1>
+          <div className="title-container">
+            <h1>My Bookings</h1>
+            <button 
+              onClick={copyToClipboard} 
+              className="copy-button"
+              title="Copy link to this page"
+            >
+              {copied ? 'Copied!' : <FaCopy />}
+            </button>
+          </div>
           <div className="error">
             <p>{error}</p>
             <button 
@@ -192,7 +252,23 @@ export const Bookings = () => {
   return (
     <div className="bookings">
       <div className="container">
-        <h1>My Bookings</h1>
+        <div className="title-container">
+          <h1>My Bookings</h1>
+          <button 
+            onClick={copyToClipboard} 
+            className="copy-button"
+            title="Copy link to this page"
+          >
+            {copied ? 'Copied!' : <FaCopy /> } Copy Link
+          </button>
+          <button 
+            onClick={shareToFacebook} 
+            className="copy-button"
+            title="Share to Facebook"
+          >
+            <FaFacebook />  Share to Facebook
+          </button>
+        </div>
         
         {bookings.length === 0 ? (
           <div className="no-bookings">
@@ -209,7 +285,7 @@ export const Bookings = () => {
             {bookings.map((booking) => (
               <div key={booking.id} className="booking-card">
                 <div className="booking-header">
-                  <h3>{booking.courtName}</h3>
+                  <h3>{booking.owner.name}  <i>({booking.courtName})</i></h3>
                   <span className={`status-badge ${booking.status}`}>
                     {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1) || 'Pending'}
                   </span>
@@ -289,6 +365,7 @@ export const Bookings = () => {
           </div>
         </div>
       )}
+      <GoogleAdsense />
     </div>
   );
 };

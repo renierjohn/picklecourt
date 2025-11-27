@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
-import { FaGoogle, FaFacebook } from 'react-icons/fa';
+import { FaGoogle, FaFacebook, FaMoneyBill } from 'react-icons/fa';
+import GoogleAdsense from '../components/GoogleAdsense';
 import '../styles/pages/auth.scss';
 
 export const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
 
   const { user, register, signInWithGoogle, signInWithFacebook, error: authError, setError: setAuthError } = useAuth();
   const { recaptchaToken, RecaptchaComponent, resetRecaptcha } = useRecaptcha(RECAPTCHA_ACTIONS.REGISTER);
@@ -23,7 +26,8 @@ export const Register = () => {
   const handleGoogleSignIn = async (e) => {
     e.preventDefault();
     setError('');
-    const result = await signInWithGoogle();
+    const plan = searchParams.get('plan') || 'free';
+    const result = await signInWithGoogle(plan = 'free');
     if (result.success) {
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
@@ -35,6 +39,7 @@ export const Register = () => {
   const handleFacebookSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    const plan = searchParams.get('plan') || 'free';
     const result = await signInWithFacebook();
     if (result.success) {
       const from = location.state?.from?.pathname || '/';
@@ -64,9 +69,10 @@ export const Register = () => {
     }
 
     setIsLoading(true);
-    
+   
     try {
-      const result = await register(name, email, password, recaptchaToken);
+      const plan = searchParams.get('plan') || 'free'; 
+      const result = await register(name, email, password, recaptchaToken, plan);
       if (result.success) {
         const from = location.state?.from?.pathname || '/';
         navigate(from, { replace: true });
@@ -118,9 +124,19 @@ export const Register = () => {
           display: 'inline-block',
           marginLeft: '50%',
           transform: 'translateX(-50%)'
-        }}>Try 1 Month free trial</p>
+        }}>With FREE 6 Month Service</p>
         {error && <div className="error-message">{error}</div>}
         <div className="social-login">
+          <GoogleAdsense />
+          <button 
+            type="button" 
+            className="btn-social pricing"
+            onClick={() => navigate('/pricing')}
+            disabled={isLoading}
+          >
+            <FaMoneyBill className="social-icon" />
+            <span>View Pricing</span>
+          </button>
           <button 
             type="button" 
             className="btn-social google"
@@ -206,6 +222,7 @@ export const Register = () => {
         <div className="auth-footer">
           Already have an account? <Link to="/login">Login here</Link>
         </div>
+      <GoogleAdsense />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
-import { RECAPTCHA_SITE_KEY } from '../config/recaptcha';
+import { RECAPTCHA_SITE_KEY, RECAPTCHA_HIDDEN_SITE_KEY } from '../config/recaptcha';
 
 export const useRecaptcha = (action) => {
   const [recaptchaToken, setRecaptchaToken] = useState('');
@@ -9,6 +9,14 @@ export const useRecaptcha = (action) => {
   const onRecaptchaChange = useCallback((token) => {
     setRecaptchaToken(token);
   }, []);
+
+  const execute = useCallback(async () => {
+    if (!recaptchaRef) {
+      console.error('reCAPTCHA ref not available');
+      return null;
+    }
+    return await recaptchaRef.executeAsync();
+  }, [recaptchaRef]);
 
   const resetRecaptcha = useCallback(() => {
     if (recaptchaRef) {
@@ -32,9 +40,25 @@ export const useRecaptcha = (action) => {
     [action, onRecaptchaChange]
   );
 
+  const RecaptchaHiddenComponent = useCallback(
+    () => (
+      <div className="recaptcha-container">
+        <ReCAPTCHA
+          ref={setRecaptchaRef}
+          sitekey={RECAPTCHA_HIDDEN_SITE_KEY}
+          size="invisible"
+          data-action={action}
+        />
+      </div>
+    ),
+    [action]
+  );
+
   return {
     recaptchaToken,
     RecaptchaComponent,
+    RecaptchaHiddenComponent,
     resetRecaptcha,
+    execute
   };
 };

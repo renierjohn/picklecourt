@@ -12,12 +12,18 @@ import Unauthorized from './pages/Unauthorized.jsx';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Bookings } from './pages/Bookings';
+import Events from './pages/Events';
+import EventDetail from './pages/EventDetail';
 import { Footer } from './components/Footer';
-import MessengerChat from './components/MessengerChat';
+import SeoMeta from './components/SeoMeta';
+import TawkMessenger from './components/TawkMessenger';
+import { RecaptchaTest } from './pages/RecaptchaTest';
+import Pricing from './pages/Pricing';
 
 function App() {
   return (
     <AuthProvider>
+      <SeoMeta />
       <Router>
         <div className="app">
           <Header />
@@ -26,10 +32,13 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/event/:id" element={<EventDetail />} />
               <Route
                 path="/admin"
                 element={
-                  <ProtectedRoute requireAdmin>
+                  <ProtectedRoute>
                     <Admin />
                   </ProtectedRoute>
                 }
@@ -49,15 +58,22 @@ function App() {
               <Route
                 path="/database-test"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requireAdmin>
                     <DatabaseTest />
                   </ProtectedRoute>
                 }
               />
+              <Route path="/recaptcha-test" element={
+                <ProtectedRoute requireAdmin>
+                  <RecaptchaTest />
+                </ProtectedRoute>
+              } />
             </Routes>
           </main>
           <Footer />
-          <MessengerChat />
+          {!window.location.pathname.startsWith('/admin' || '/recaptcha-test' || '/database-test' || '/users') && (
+            <TawkMessenger embedUrl={import.meta.env.VITE_TAWK_TO_WIDGET} />
+          )}
         </div>
       </Router>
     </AuthProvider>

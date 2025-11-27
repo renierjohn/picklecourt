@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import SeoMeta from '../components/SeoMeta';
 import { format, addDays, isToday, isWeekend, isSameDay, parseISO } from 'date-fns';
 import { getFirestore, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../firebase/config';
@@ -16,6 +17,11 @@ const db = getFirestore(app);
 export const Courts = () => {
   const navigate = useNavigate();
   const { userId } = useParams();
+  
+  // SEO Meta Data
+  const pageTitle = `PickleBall Courts - Find & Book Available Courts`;
+  const pageDescription = "Browse and book available PickleBall courts. Check real-time availability and secure your playing time.";
+  // const pageImage = "/images/courts-preview.jpg";
 
   // Generate dates for the next 2 months (current month + next month)
   const today = new Date();
@@ -34,8 +40,17 @@ export const Courts = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
+  const [userName, setUserName] = useState('');
   const [userPhoto, setUserPhoto] = useState(null);
   const [userLocation, setUserLocation] = useState('');
+  const [userContact, setUserContact] = useState({
+    phone: '',
+    email: '',
+    facebook: '',
+    twitter: '',
+    instagram: '',
+    plan: 'free'
+  });
 
   // Check if a time slot is during lunch break (12:00 - 13:00)
   const isLunchBreak = (time24) => {
@@ -242,9 +257,18 @@ export const Courts = () => {
 
         // Get the user document
         const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data();
+        const userData = userDoc.data();  
+        setUserName(userData.name || 'PickleBall Courts');
         setUserPhoto(userData.photoURL || null);
         setUserLocation(userData.location || '');
+        setUserContact({
+          phone: userData.phoneNumber || '',
+          email: userData.email || '',
+          facebook: userData.facebook || '',
+          twitter: userData.twitter || '',
+          instagram: userData.instagram || '',
+          plan: userData.plan || 'free'
+        });
         const actualUserId = userDoc.id; // This is the actual user ID we'll use to filter courts
 
         // Now fetch courts for this user
@@ -334,42 +358,82 @@ export const Courts = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="home">
-        <HeroBanner backgroundImage={userPhoto} />
-        <div className="container">
-          <div className="error">
-            <h3>Error Loading Courts</h3>
-            <p>{error}</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <div className="home">
+  //       <HeroBanner backgroundImage={userPhoto} contactInfo={userContact} />
+  //       <div className="container">
+  //         <div className="error">
+  //           <h3>Error Loading Courts</h3>
+  //           <p>{error}</p>
+  //           <button
+  //             className="btn btn-primary"
+  //             onClick={() => window.location.reload()}
+  //           >
+  //             Try Again
+  //           </button>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
-  if (courts.length === 0) {
+  if (error || courts.length === 0) {
     return (
+      <>
+      <SeoMeta 
+        title={userName + ' - ' + pageTitle}
+        description={pageDescription}
+        image={userPhoto}
+        url={`https://events-ph.com/courts${userId ? `/${userId}` : ''}`}
+      />
       <div className="home">
-        <HeroBanner backgroundImage={userPhoto} />
+        <HeroBanner backgroundImage={userPhoto} contactInfo={userContact} />
         <div className="container">
           <div className="no-courts">
-            <p>No courts found for this user.</p>
+            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              Contact Us for more information &nbsp;
+              <a href="/pricing">View Pricing</a></h3>
           </div>
         </div>
+        {/* Google Maps Section */}
+        {userLocation && (
+          <section className="map-section" style={{ padding: '2rem 0', backgroundColor: '#f8f9fa' }}>
+            <div className="container">
+              <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Location</h2>
+              <div style={{ height: '400px', width: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+                <iframe
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  scrolling="no"
+                  marginHeight="0"
+                  marginWidth="0"
+                  src={`https://maps.google.com/maps?width=100%&height=600&hl=en&q=${encodeURIComponent(userLocation)}&t=&z=14&ie=UTF8&iwloc=B&output=embed`}
+                  title="Court Location"
+                  style={{ border: 'none' }}
+                  allowFullScreen=""
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          </section>
+        )}
       </div>
+    </>
     );
   }
 
   return (
-    <div className="courts">
-      <HeroBanner backgroundImage={userPhoto} />
+    <>
+      <SeoMeta 
+        title={userName + ' - ' + pageTitle}
+        description={pageDescription}
+        image={userPhoto}
+        url={`https://events-ph.com/courts${userId ? `/${userId}` : ''}`}
+      />
+      <div className="courts">
+      <HeroBanner backgroundImage={userPhoto} contactInfo={userContact} />
 
             <section id="courts-section" className="courts-section">
         <div className="container">
@@ -600,6 +664,7 @@ export const Courts = () => {
           </div>
         </section>
       )}
-    </div>
+      </div>
+    </>
   );
 };

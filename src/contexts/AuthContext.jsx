@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               status: 0, // Active by default
-              uid: firebaseUser.uid,
+              uid: firebaseUser.uid
             });
           }
           
@@ -100,7 +100,8 @@ export const AuthProvider = ({ children }) => {
             email: firebaseUser.email,
             name: firebaseUser.displayName || 'User',
             role: userRole,
-            lastLogin: new Date().toISOString()
+            lastLogin: new Date().toISOString(),
+            plan: userDoc.data().plan || 'basic'
           };
 
           // Set user in state and localStorage with 24-hour expiration
@@ -169,7 +170,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (plan) => {
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
@@ -188,7 +189,8 @@ export const AuthProvider = ({ children }) => {
           status: 0, // Mark as active for social login
           emailVerified: true,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          plan: plan,
         };
 
         // Store or update user data in Firestore
@@ -236,7 +238,8 @@ export const AuthProvider = ({ children }) => {
         status: 0, // Mark as active for social login
         emailVerified: true,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        plan: 'basic',
       };
 
       // Store or update user data in Firestore
@@ -267,7 +270,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const register = useCallback(async (name, email, password) => {
+  const register = useCallback(async (name, email, password, recaptchaToken, plan) => {
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -287,7 +290,8 @@ export const AuthProvider = ({ children }) => {
         status: 0,    // Default status is 0 (inactive/unverified)
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        emailVerified: false
+        emailVerified: false,
+        plan: plan,
       };
 
       // Store user data in Firestore

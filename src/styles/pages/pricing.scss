@@ -1,0 +1,237 @@
+// src/styles/pages/pricing.scss
+
+.pricing-page {
+  margin-top: 2rem;
+  .flex {
+    justify-content: center;
+    flex-wrap: wrap;
+    display: flex;
+    @media (max-width: $breakpoint-md) {
+      flex-direction: column;
+    }
+  }
+  svg {
+    stroke-width: 2;
+    width: 1rem;
+    height: 1rem;
+  }
+  .pricing-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    margin: 1rem;
+    border: none;
+    position: relative;
+    z-index: 1;
+    width: 25%;
+    
+    @media (max-width: $breakpoint-md) {
+      width: 100%;
+    }
+
+    &.bg-pink-500 {
+      background: linear-gradient(145deg, $pink-500 0%, #f8fafc 100%);
+    }
+    &.bg-orange-500 {
+      background: linear-gradient(145deg, $orange-500 0%, #f8fafc 100%);
+    }
+    &.bg-teal-500 {
+      background: linear-gradient(145deg, $teal-500 0%, #f8fafc 100%);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: -1;
+      border-radius: 0.5rem;
+    }
+    
+    &.popular {
+      &::before {
+        opacity: 1;
+        background: linear-gradient(145deg, #ffedd5 0%, #fed7aa 100%);
+      }
+    }
+
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                  0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    a {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      text-align: center;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.875rem;
+    }
+
+    .banner {
+      height: 0.5rem;
+      width: 100%;
+      background: linear-gradient(90deg, #0d9488 0%, #0e7490 100%);
+      border-radius: 0.25rem;
+      margin-bottom: 1.5rem;
+      
+      .pricing-card:nth-child(1) & {
+        background: linear-gradient(90deg, #0d9488 0%, #0e7490 100%);
+      }
+      
+      .pricing-card:nth-child(2) & {
+        background: linear-gradient(90deg, #ea580c 0%, #d97706 100%);
+      }
+      
+      .pricing-card:nth-child(3) & {
+        background: linear-gradient(90deg, #db2777 0%, #c026d3 100%);
+      }
+    }
+
+    .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0.5rem 0 0.25rem;
+      line-height: 1.2;
+
+      .period {
+        font-size: 1rem;
+        color: #6b7280;
+      }
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0;
+
+      li {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+
+        svg {
+          flex-shrink: 0;
+          margin-right: 0.75rem;
+        }
+
+        &.included {
+          color: #374151;
+        }
+
+        &.excluded {
+          color: #9ca3af;
+          text-decoration: line-through;
+        }
+      }
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      text-align: center;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.875rem;
+
+      &.btn-primary {
+        background-color: #2563eb;
+        color: white;
+
+        &:hover {
+          background-color: #1d4ed8;
+        }
+      }
+
+      &.btn-outline {
+        border: 1px solid #d1d5db;
+        color: #374151;
+
+        &:hover {
+          background-color: #f9fafb;
+        }
+      }
+    }
+  }
+
+  .popular-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #3b82f6;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-bottom-left-radius: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .faq-item {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 
+                0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                  0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    h3 {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    p {
+      color: #6b7280;
+      margin-top: 0.5rem;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 1024px) {
+  .pricing-page {
+    .pricing-card {
+      max-width: 28rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .pricing-page {
+    padding: 2rem 1rem;
+
+    .pricing-card {
+      max-width: 100%;
+    }
+  }
+}

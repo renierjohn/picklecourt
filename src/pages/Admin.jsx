@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { collection, doc, getDoc, setDoc, updateDoc, query, where, onSnapshot, getFirestore, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth, auth } from '../contexts/AuthContext';
-import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
-import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt, FaTrash } from 'react-icons/fa';
+import { FaUser, FaCamera, FaSave, FaTimes, FaCalendarAlt, FaClock, FaMoneyBillWave, FaUserAlt, FaPhone, FaEnvelope, FaMapMarkerAlt, FaReceipt, FaTrash, FaFacebook, FaTwitter, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
+
 import LocationPicker from '../components/LocationPicker';
+import ConfirmationModal from '../components/ConfirmationModal';
 import '../styles/pages/admin.scss';
 import '../styles/components/_booking-modal.scss';
 
@@ -13,7 +16,8 @@ export const Admin = () => {
   const db = getFirestore();
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  
+  const { recaptchaToken, RecaptchaHiddenComponent, execute } = useRecaptcha(RECAPTCHA_ACTIONS.ADMIN);
+
   // State for courts and bookings
   const [bookings, setBookings] = useState([]);
   const [courts, setCourts] = useState([]);
@@ -28,6 +32,7 @@ export const Admin = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [revenue, setRevenue] = useState(0);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const {token, setToken} = useState('');
   const [showCourtForm, setShowCourtForm] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
   const [zoomedPaymentImage, setZoomedPaymentImage] = useState(null);
@@ -78,6 +83,8 @@ export const Admin = () => {
       lng: null
     },
     photoURL: '',
+    subscriptionType: '',
+    subscriptionExpiry: '',
     paymentMethods: []
   });
 
@@ -108,6 +115,71 @@ export const Admin = () => {
     today.setHours(0, 0, 0, 0);
     expiry.setHours(0, 0, 0, 0);
     return expiry < today;
+  };
+
+  // Generate and download CSV report of bookings
+  const generateCSV = () => {
+    // Combine upcoming and recent bookings
+    const allBookings = [...upcomingBookings, ...(recentBookings || [])];
+    
+    if (allBookings.length === 0) return;
+
+    // Sort by date (newest first)
+    const sortedBookings = [...allBookings].sort((a, b) => {
+      return new Date(b.date) - new Date(a.date);
+    });
+
+    // Define CSV header with BOM for Excel/Google Sheets
+    let csvContent = '\uFEFF'; // BOM for UTF-8
+    csvContent += 'Customer,Date,Time Slots,Contact,Status,Amount,Type\r\n';
+
+    // Add each booking as a row in the CSV
+    sortedBookings.forEach(booking => {
+      const customer = booking.user?.name || 'Guest';
+      const date = booking.formattedDate || '';
+      const timeSlots = booking.formattedTimes || '';
+      const contact = booking.user?.phone || '';
+      const status = booking.status || 'pending';
+      const amount = `₱${Number(booking.totalPrice || 0).toFixed(2)}`;
+      const bookingType = upcomingBookings.some(b => b.id === booking.id) ? 'Upcoming' : 'Past';
+
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        // If the field contains commas, quotes, or newlines, wrap it in quotes and escape existing quotes
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Add the row to the CSV content
+      csvContent += [
+        escapeCsv(customer),
+        escapeCsv(date),
+        escapeCsv(timeSlots),
+        escapeCsv(contact),
+        escapeCsv(status),
+        escapeCsv(amount),
+        escapeCsv(bookingType)
+      ].join(',') + '\n';
+    });
+
+    // Create a download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `bookings_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleDayToggle = (day) => {
@@ -254,8 +326,12 @@ export const Admin = () => {
             image: method.image
           })) : [],
           phoneNumber: userData.phoneNumber || '',
-          subscriptionType: userData.subscriptionType ? userData.subscriptionType.toUpperCase() : 'N/A',
+          subscriptionType: userData.plan ? userData.plan.toUpperCase() : 'N/A',
           subscriptionExpiry: userData.subscriptionExpiry || 'N/A',
+          facebook: userData.facebook || '',
+          twitter: userData.twitter || '',
+          instagram: userData.instagram || '',
+          messenger: userData.messenger || ''
         });
         setImagePreview(userData.photoURL || '');
         setRevenue(userData.revenue || 0);
@@ -380,6 +456,10 @@ export const Admin = () => {
         updatedAt: new Date().toISOString(),
         phoneNumber: userProfile.phoneNumber ? userProfile.phoneNumber.trim() : '',
         email: userProfile.email.trim(),
+        facebook: userProfile.facebook.trim(),
+        twitter: userProfile.twitter.trim(),
+        instagram: userProfile.instagram.trim(),
+        messenger: userProfile.messenger.trim(),
       };
 
       // Upload new profile image if selected
@@ -666,6 +746,16 @@ export const Admin = () => {
         throw new Error('Booking not found');
       }
 
+      // Send Notification Slack    
+      await fetch(`${import.meta.env.VITE_WORKER_URL}/api/notify/slack/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${recaptchaToken}`
+        },
+        body: JSON.stringify(bookingData),
+      });
+
       // Update booking status
       await updateDoc(bookingRef, {
         status: 'confirmed',
@@ -762,11 +852,23 @@ export const Admin = () => {
       danger: true,
       onConfirm: async () => {
         try {
-          const bookingRef = doc(db, 'bookings', bookingId);
-          await deleteDoc(bookingRef);
+          const bookingData = bookings.find(c => c.id === bookingId);
+          // const bookingRef = doc(db, 'bookings', bookingId);
+          // await deleteDoc(bookingRef);
           // Update the local state to remove the deleted booking
           setBookings(prev => prev.filter(b => b.id !== bookingId));
           setModalConfig(prev => ({ ...prev, isOpen: false }));
+
+          // Send Notification Slack    
+          await fetch(`${import.meta.env.VITE_WORKER_URL}/api/notify/slack/delete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `${recaptchaToken}`
+            },
+            body: JSON.stringify(bookingData),
+          });
+
         } catch (error) {
           console.error('Error deleting booking:', error);
           setModalConfig({
@@ -852,24 +954,23 @@ export const Admin = () => {
   // const recentBookings = bookings
   //   .filter(booking => booking.date && new Date(booking.date) <= new Date())
   //   .sort((a, b) => new Date(b.date) - new Date(a.date));
-    const recentBookings = bookings
-      .filter(booking => {
-        if (!booking.date) {
-            return false; // Skip bookings without a date
-        }
-        const bookingDate = new Date(booking.date);
-        return bookingDate < todayMidnight;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const recentBookings = bookings
+    .filter(booking => {
+      if (!booking.date) {
+          return false; // Skip bookings without a date
+      }
+      const bookingDate = new Date(booking.date);
+      return bookingDate < todayMidnight;
+  })
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Subscription data - in a real app, this would come from an API or user profile
-  const subscriptionData = {
-    status: 'Active',
-    dueDate: user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : new Date(),
-    plan: 'Premium',
-    courts: courts.map(court => court.name).slice(0, 3) // Show first 3 court names
-  };
-
+  // const subscriptionData = {
+  //   status: 'Active',
+  //   dueDate: user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : new Date(),
+  //   plan: 'Premium',
+  //   courts: courts.map(court => court.name).slice(0, 3) // Show first 3 court names
+  // };
 
   // Fetch courts data from Firestore
   useEffect(() => {
@@ -939,8 +1040,24 @@ export const Admin = () => {
     return () => unsubscribeBookings();
   }, [courtsMap]); // This effect depends on courtsMap
 
-  // Redirect to login if not authenticated
   useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        const token = await execute();
+        if (token) {
+          console.log('reCAPTCHA Token:', token);
+          setToken(token);
+          // Use the token as needed
+        }
+      } catch (error) {
+        console.error('Error executing reCAPTCHA:', error);
+      }
+    };
+    verifyToken();
+  }, [execute]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => { 
     if (!loading && !user) {
       navigate('/login');
     } else if (user) {
@@ -952,21 +1069,30 @@ export const Admin = () => {
   return (
     <div className="admin-page">
       <div className="container">
+        {/* <RecaptchaHiddenComponent /> */}
         <h1 className="page-title">Admin Dashboard</h1>
-        
+
         {/* User Profile Section */}
         <div className="profile-section">
           <div className="profile-card">
             <div className="profile-header">
               <h2>My Profile</h2>
-              {!isEditingProfile ? (
                 <button 
-                  className="btn-edit"
-                  onClick={() => setIsEditingProfile(true)}
+                  className="btn btn-generate"
+                  onClick={generateCSV}
+                  disabled={upcomingBookings.length === 0 && (!recentBookings || recentBookings.length === 0)}
+                  title="Download all bookings as CSV"
                 >
-                  <FaUser /> Edit Profile
+                  Generate Report (CSV)
                 </button>
-              ) : (
+                {!isEditingProfile ? (
+                  <button 
+                    className="btn-edit"
+                    onClick={() => setIsEditingProfile(true)}
+                  >
+                    <FaUser /> Edit Profile
+                  </button>
+                ) : (
                 <div className="profile-actions">
                   <button 
                     className="btn-cancel"
@@ -1004,6 +1130,7 @@ export const Admin = () => {
                           <FaUser />
                         </div>
                       )}
+                      
                       <div className="image-overlay">
                         <FaCamera />
                         <span>Change Photo</span>
@@ -1018,6 +1145,7 @@ export const Admin = () => {
                     />
                   </div>
                 ) : (
+                  
                   <div className="profile-image">
                     {userProfile.photoURL ? (
                       <img src={userProfile.photoURL} alt="Profile" />
@@ -1027,6 +1155,7 @@ export const Admin = () => {
                       </div>
                     )}
                   </div>
+                  
                 )}
               </div>
               
@@ -1044,7 +1173,7 @@ export const Admin = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Email</label>
+                      <label><FaEnvelope /> Email</label>
                       <input
                         type="email"
                         value={userProfile.email}
@@ -1053,7 +1182,7 @@ export const Admin = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Phone Number</label>
+                      <label><FaPhone /> Phone Number</label>
                       <input
                         type="tel"
                         name="phoneNumber"
@@ -1062,6 +1191,51 @@ export const Admin = () => {
                         placeholder="Enter your phone number"
                       />
                     </div>
+
+                    <div className='row social-media'>
+                      <label>Social Media</label>
+                      <div className="form-group">
+                      <label><FaFacebookMessenger /> Messenger</label>
+                      <input
+                        type="text"
+                        name="messenger"
+                        value={userProfile.messenger}
+                        onChange={handleProfileChange}                        
+                        placeholder="Messenger"
+                      />
+                      </div>
+                      <div className="form-group">
+                      <label><FaFacebook /> Facebook</label>
+                      <input
+                        type="text"
+                        name="facebook"
+                        value={userProfile.facebook}
+                        onChange={handleProfileChange}                        
+                        placeholder="Facebook"
+                      />
+                      </div>
+                      <div className="form-group">
+                        <label><FaTwitter /> Twitter (X)</label>
+                        <input
+                          type="text"
+                          name="twitter"
+                          value={userProfile.twitter}
+                          onChange={handleProfileChange}                        
+                          placeholder="Twitter"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label><FaInstagram /> Instgram</label>
+                        <input
+                          type="text"
+                          name="instagram"
+                          value={userProfile.instagram}
+                          onChange={handleProfileChange}                        
+                          placeholder="Instagram"
+                        />
+                      </div>
+                    </div>
+                  
                     <div className="form-group">
                       <label><FaMapMarkerAlt /> Location</label>
                       <input
@@ -1165,7 +1339,7 @@ export const Admin = () => {
                       <p className="location">
                         <i className="fas fa-map-marker-alt"></i> {userProfile.location}
                       </p>
-                    )}
+                    )}                 
                     {userProfile.paymentMethods?.length > 0 && (
                       <div className="payment-methods-preview">
                       <h4>Payment Methods</h4>
@@ -1261,7 +1435,7 @@ export const Admin = () => {
         </div>
 
         {/* Add Court Section */}
-        <div className="admin-section">
+        <div className="admin-section" data-disabled={user.plan === 'free' ? true : false}>
           <div className="section-header">
             <h2>Manage Courts</h2>
             <button 
@@ -1542,10 +1716,20 @@ export const Admin = () => {
           </div>
         </div>
         
-        <div className="bookings-table-container">
+        <div className="bookings-table-container" data-disabled={user.plan === 'free' ? true : false}>
           <div className="section-header">
             <h2>Upcoming Bookings</h2>
-            <span className="badge">{upcomingBookings.length} Upcoming</span>
+            <div className="header-actions">
+              <button 
+                className="btn btn-primary"
+                onClick={() => generateCSV()}
+                disabled={upcomingBookings.length === 0}
+                title="Download bookings as CSV"
+              >
+                Generate Report (CSV)
+              </button>
+              <span className="badge">{upcomingBookings.length} Upcoming</span>
+            </div>
           </div>
           
           {upcomingBookings.length > 0 ? (
@@ -1616,7 +1800,7 @@ export const Admin = () => {
         </div>
 
         {/* Recent Bookings Table */}
-        <div className="bookings-table-container" style={{ marginTop: '2rem' }}>
+        <div className="bookings-table-container" data-disabled={user.plan === 'free' ? true : false} style={{ marginTop: '2rem' }}>
           <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2>Recent Bookings</h2>

@@ -23,7 +23,7 @@ const PickleballNews = () => {
         const data = await response.json();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
-console.log(xmlDoc);        
+        
         const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 5).map(item => ({
           title: item.querySelector('title')?.textContent || 'No title',
           link: item.querySelector('link')?.textContent || '#',

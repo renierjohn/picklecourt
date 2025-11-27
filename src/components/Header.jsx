@@ -26,7 +26,7 @@ export const Header = () => {
 
     // Handle scroll
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      setIsScrolled(window.scrollY > 200);
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -62,13 +62,16 @@ export const Header = () => {
           <nav className={`nav ${isMenuOpen ? 'active' : ''}`}>
             <div className="nav-links">
               <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
+              {/* <Link to="/events" className="nav-link" onClick={() => setIsMenuOpen(false)}>Events</Link> */}
+              <Link to="/pricing" className="nav-link" onClick={() => setIsMenuOpen(false)}>Pricing</Link>
               {user?.role === 'admin' || user?.role === 'manager' && (
                 <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
               )}
               {user?.email === 'renify.official@gmail.com' && (
                 <>
                   <Link to="/users" className="nav-link" onClick={() => setIsMenuOpen(false)}>Users</Link>
-                  <Link to="/database-test" className="nav-link" onClick={() => setIsMenuOpen(false)}>Database Test</Link>
+                  <Link to="/database-test" className="nav-link" onClick={() => setIsMenuOpen(false)}>DB Checker</Link>
+                  <Link to="/recaptcha-test" className="nav-link" onClick={() => setIsMenuOpen(false)}>Recaptcha Test</Link>
                 </>
               )}
             </div>

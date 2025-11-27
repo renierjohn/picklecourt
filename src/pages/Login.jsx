@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_ACTIONS } from '../config/recaptcha';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
+import GoogleAdsense from '../components/GoogleAdsense';
 import '../styles/pages/auth.scss';
 
 export const Login = () => {
@@ -146,6 +147,7 @@ export const Login = () => {
         <div className="auth-footer">
           Don't have an account? <Link to="/register">Register here</Link>
         </div>
+      <GoogleAdsense />
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ export const BookingSummary = () => {
     return `${firstTime} - ${endTime} (${selectedTimes.length} slots)`;
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e) => { 
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -183,7 +183,7 @@ export const BookingSummary = () => {
         paymentMethod: courtOwner?.paymentMethods?.[selectedPaymentMethod]?.name || 'Not specified',
         paymentStatus: 'pending',
         paymentProof: paymentProofUrl, // Store the uploaded payment proof URL
-        paymentProofPreview: paymentProofPreview, // Keep preview for admin reference
+        // paymentProofPreview: paymentProofPreview, // Keep preview for admin reference
         totalPrice: totalPrice,
         user: {
           id: userData?.uid || '',
@@ -205,6 +205,17 @@ export const BookingSummary = () => {
 
       // Add booking to Firestore
       await addDoc(collection(db, 'bookings'), bookingData);
+      
+      // Send Notification Slack
+      await fetch(`${import.meta.env.VITE_WORKER_URL}/api/notify/slack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${recaptchaToken}`
+        },
+        body: JSON.stringify(bookingData),
+      });
+
       setBookingSuccess(true);
       navigate('/bookings');
     } catch (err) {

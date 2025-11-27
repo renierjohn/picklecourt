@@ -1,3 +1,104 @@
+.manage-courts-btn {
+  margin-top: $spacing-xxl;
+  text-align: center;
+}
+// Quote Section
+.quote-section {
+  padding: $spacing-xxl 0;
+  background-color: #0c1f3e;
+  color: white;
+  text-align: center;
+
+  .quote {
+    max-width: 800px;
+    margin: 0 auto;
+    font-size: 1.5rem;
+    font-style: italic;
+    line-height: 1.6;
+    position: relative;
+    padding: 0 2rem;
+  }
+  
+  .quote-list {
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0;
+    text-align: left;
+    max-width: 800px;
+    margin: 0 auto;
+    
+    .quote-list-item {
+      position: relative;
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+      font-style: normal;
+      font-size: 1.2rem;
+      
+      &::before {
+        content: '';
+        color: #fff;
+        font-weight: bold;
+        font-size: 1.5rem;
+        position: absolute;
+        left: 0;
+        top: -0.2rem;
+      }
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  
+
+    &::before, &::after {
+      content: '"';
+      font-size: 4rem;
+      position: absolute;
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    &::before {
+      top: -1.5rem;
+      left: 0;
+    }
+
+    &::after {
+      bottom: -3rem;
+      right: 0;
+    }
+  }
+}
+
+.quote-container {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  
+  &.loading {
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 1rem;
+    }
+  }
+  
+  &.error {
+    color: #ff6b6b;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 // Loading Animation
 .loading-container {
   display: flex;

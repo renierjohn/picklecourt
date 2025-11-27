@@ -35,9 +35,9 @@ export const Footer = () => {
                 <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                   <FaInstagram />
                 </a>
-                <a href="mailto:renify.official@gmail.com" aria-label="Email us">
+                <a href="mailto:support@events-ph.com" aria-label="Email us">
                   <FaEnvelope />
-                  <span className="email-text">renify.official@gmail.com</span>
+                  <span className="email-text">support@events-ph.com</span>
                 </a>
               </div>
             </div>

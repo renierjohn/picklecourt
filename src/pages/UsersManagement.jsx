@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, doc, getDocs, updateDoc, addDoc,setDoc, deleteDoc, query, where, getFirestore, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, setDoc, deleteDoc, query, where, getFirestore, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -51,6 +51,7 @@ const UsersManagement = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [viewingUser, setViewingUser] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [userBookings, setUserBookings] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const fileInputRef = useRef(null);
   const { user } = useAuth();
@@ -198,7 +199,7 @@ const UsersManagement = () => {
     setEmail(user.email || '');
     setRole(user.role || 'user');
     setLocation(user.location || '');
-    setSubscriptionType(user.subscriptionType || 'free');
+    setSubscriptionType(user.plan || 'free');
     setSubscriptionExpiry(user.subscriptionExpiry || '');
     setImagePreview(user.photoURL || '');
   };
@@ -225,7 +226,7 @@ const UsersManagement = () => {
         name: name.trim(),
         location: location.trim(),
         role: role,
-        subscriptionType: subscriptionType,
+        plan: subscriptionType,
         subscriptionExpiry: subscriptionExpiry,
         updatedAt: serverTimestamp()
       };
@@ -285,9 +286,156 @@ const UsersManagement = () => {
     setShowViewModal(false);
   };
 
-  const handleViewUser = (user) => {
+  const handleViewUser = async (user) => {
+
     setViewingUser(user);
     setShowViewModal(true);
+    // Fetch user's bookings when viewing user details
+    await fetchUserBookings(user.id);
+  };
+
+  // Fetch bookings for a specific user based on their court ownership
+  const fetchUserBookings = async (userId) => {
+    try {
+      // First, get all courts owned by this user
+      const courtsQuery = query(collection(db, 'courts'), where('userId', '==', userId));
+      const courtsSnapshot = await getDocs(courtsQuery);
+      
+      if (courtsSnapshot.empty) {
+        setUserBookings([]);
+        return;
+      }
+      
+      const courtIds = courtsSnapshot.docs.map(doc => doc.id);
+
+      // Then, get all bookings for these courts
+      const bookingsQuery = query(
+        collection(db, 'bookings'),
+        where('courtId', 'in', courtIds)
+      );
+
+      const querySnapshot = await getDocs(bookingsQuery);
+      const bookingsData = [];
+      
+      await Promise.all(querySnapshot.docs.map(async (bookingDoc) => {
+        const bookingData = bookingDoc.data();
+        // Get court name
+        let courtName = 'Unknown Court';
+        try {
+          if (bookingData.courtId) {
+            const courtRef = doc(db, 'courts', bookingData.courtId);
+            const courtDoc = await getDoc(courtRef);
+            if (courtDoc.exists()) {
+              courtName = courtDoc.data().name || 'Unknown Court';
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching court details:', error);
+          // Continue with default court name if there's an error
+        }
+
+        // Format dates
+        const bookingDate = bookingData.date?.toDate ? bookingData.date.toDate() : new Date(bookingData.date);
+        const formattedDate = bookingDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+
+        // Format time slots
+        let formattedTimes = '';
+        if (Array.isArray(bookingData.times)) {
+          formattedTimes = bookingData.times.join(', ');
+        } else if (bookingData.time) {
+          formattedTimes = bookingData.time;
+        }
+
+        // Get user details (the person who made the booking)
+        let userName = 'Guest';
+        let userPhone = '';
+        if (bookingData.userId) {
+          const userDoc = await getDoc(doc(db, 'users', bookingData.userId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            userName = userData.name || 'Guest';
+            userPhone = userData.phone || '';
+          }
+        }
+
+        bookingsData.push({
+          id: doc.id,
+          ...bookingData,
+          courtName,
+          formattedDate,
+          formattedTimes,
+          userName,
+          userPhone,
+          date: bookingDate
+        });
+      }));
+
+      // Sort by date (newest first)
+      bookingsData.sort((a, b) => b.date - a.date);
+      setUserBookings(bookingsData);
+    } catch (error) {
+      console.error('Error fetching user bookings:', error);
+      setError('Failed to load user bookings');
+    }
+  };
+
+  // Generate and download CSV report of user's bookings
+  const generateUserReport = () => {
+    if (userBookings.length === 0) return;
+
+    // Define CSV header with BOM for Excel/Google Sheets
+    let csvContent = '\uFEFF'; // BOM for UTF-8
+    csvContent += 'Court,Date,Time Slots,Status,Amount,Booking Date\r\n';
+
+    // Add each booking as a row in the CSV
+    userBookings.forEach(booking => {
+      const court = booking.courtName || 'N/A';
+      const date = booking.formattedDate || '';
+      const timeSlots = booking.formattedTimes || '';
+      const status = booking.status || 'pending';
+      const amount = `₱${Number(booking.totalPrice || 0).toFixed(2)}`;
+      const bookingDate = booking.date ? booking.date.toLocaleString() : 'N/A';
+
+      // Escape fields that might contain commas or quotes
+      const escapeCsv = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        // If the field contains commas, quotes, or newlines, wrap it in quotes and escape existing quotes
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Add the row to the CSV content
+      csvContent += [
+        escapeCsv(court),
+        escapeCsv(date),
+        escapeCsv(timeSlots),
+        escapeCsv(status),
+        escapeCsv(amount),
+        escapeCsv(bookingDate)
+      ].join(',') + '\n';
+    });
+
+    // Create a download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const userName = viewingUser?.name?.replace(/\s+/g, '_') || 'user';
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${userName}_bookings_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAddUser = async (e) => {
@@ -514,7 +662,18 @@ const UsersManagement = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
+              <button 
+                className="btn btn-generate"
+                onClick={generateUserReport}
+                disabled={userBookings.length === 0}
+                title="Download user's booking history as CSV"
+              >
+                Generate Report (CSV)
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowViewModal(false)}
+              >
                 Close
               </button>
             </div>
@@ -577,10 +736,10 @@ const UsersManagement = () => {
                 onChange={(e) => setSubscriptionType(e.target.value)}
                 className="form-control"
               >
-                <option value="free">Free Trial</option>
+                <option value="free">Free</option>
                 <option value="basic">Basic</option>
+                <option value="standard">Standard</option>
                 <option value="premium">Premium</option>
-                <option value="enterprise">Enterprise</option>
               </select>
             </div>
             
@@ -672,7 +831,7 @@ const UsersManagement = () => {
               <tr key={user.id}>
                 <td>{user.email}</td>
                 <td>{user.name || 'N/A'}</td>
-                <td>{user.subscriptionType || 'free'}</td>
+                <td>{user.plan || 'free'}</td>
                 <td>{user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : 'N/A'}</td>
                 <td>PHP {user.revenue ? parseFloat(user.revenue).toFixed(2) : '0.00'}</td>
                 <td>

@@ -6,3 +6,7 @@ Create site with google inspired theme that has pickleball booking on courts.
   - 3rd page is the payment summary, contains image of court, date , form for name (should be visited when clicked by "Book Now" button)
 - There should be scss files for global, variables & components
 - Should be build from vite
+
+- Create events page & events detail page
+- Inside events page, there are list of events in card component that contains title, date location , social share icons & button (View Details) & use static data first for mockup
+- Inside events detail page, contains title , banner, body , social share icons & has seperate component for tournaments with cracket format display & use static data first for mockup

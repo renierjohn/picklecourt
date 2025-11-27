@@ -1,4 +1,18 @@
 .admin-page {
+  [data-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .social-media {
+    display: flex;
+    gap: $spacing-sm;
+
+    .form-group {
+      width: 50%;
+    }
+  }
+
   padding: $spacing-lg 0;
   
   // Profile Section Styles
@@ -390,7 +404,7 @@
           color: $text-color;
         }
         
-        .btn-edit, .btn-save, .btn-cancel {
+        .btn-generate .btn-edit, .btn-save, .btn-cancel {
           display: inline-flex;
           align-items: center;
           gap: $spacing-xs;
